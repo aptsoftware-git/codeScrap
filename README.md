@@ -1,107 +1,169 @@
-# Event-Focused Web Scraping, Summarization & Export Tool
+# Event Scraper - Web Intelligence Gathering Tool
 
-A Python-based web scraping tool that extracts, summarizes, and exports event information from news sources using Ollama LLMs.
+Automated web scraping tool for extracting, analyzing, and exporting event information from news sources using AI (Ollama LLMs).
 
 ---
 
-## 🎯 Project Status
+## 🚀 Quick Start
 
-**Current Phase:** Increment 1 - Project Setup & Ollama Integration ✅
+See **[QUICKSTART.md](QUICKSTART.md)** for detailed setup instructions.
 
-### Completed
-- ✅ Project structure created
-- ✅ FastAPI backend setup
-- ✅ Ollama integration with `gpt-oss:20b` model
-- ✅ Basic API endpoints (health check, Ollama status)
-- ✅ Configuration management
-- ✅ Logging setup
+### TL;DR
 
-### Next Steps
-- 📋 Increment 2: Configuration & Data Models
-- 📋 Increment 3: Web Scraping Engine
-- 📋 Increment 4: NLP Entity Extraction
+1. **Install Ollama** → https://ollama.ai/download
+2. **Pull a model:** `ollama pull llama3.1:8b`
+3. **Install dependencies:**
+   ```cmd
+   cd backend
+   ..\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+4. **Configure:** Edit `.env` file (set your model)
+5. **Run server:**
+   ```cmd
+   cd backend
+   ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+   ```
+6. **Access API:** http://localhost:8000/docs
+
+---
+
+## 📋 Features
+
+- ✅ **Automated Web Scraping** - Extract content from multiple news sources
+- ✅ **AI-Powered Analysis** - Event detection and classification using Ollama
+- ✅ **Entity Extraction** - Identify people, organizations, locations, dates
+- ✅ **Structured Export** - Export to Excel with detailed event information
+- ✅ **RESTful API** - FastAPI backend with interactive documentation
+- 🔄 **React Frontend** - Coming soon
 
 ---
 
 ## 📁 Project Structure
 
 ```
-event-scraper/
-├── backend/              # Python FastAPI backend
+code/
+├── backend/
 │   ├── app/
-│   │   ├── main.py      # Application entry point
-│   │   ├── config.py    # Configuration
-│   │   ├── services/    # Business logic
-│   │   └── utils/       # Utilities
-│   ├── tests/           # Unit tests
-│   └── requirements.txt
-├── frontend/            # React frontend (coming in Increment 9)
-├── config/              # Configuration files
-├── logs/                # Application logs
-├── doc/                 # Documentation
-└── .env                 # Environment variables
+│   │   ├── main.py          # FastAPI application
+│   │   ├── config.py        # Configuration management
+│   │   ├── services/        # Ollama, scraping, NLP services
+│   │   └── utils/           # Utilities and logging
+│   └── requirements.txt     # Python dependencies
+├── doc/                     # Documentation
+├── .env                     # Environment configuration
+└── QUICKSTART.md           # Setup guide
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Technology Stack
 
-### Prerequisites
+- **Backend:** Python 3.13, FastAPI, Uvicorn
+- **AI/LLM:** Ollama (llama3.1:8b, gpt-oss:20b, gemma3:1b)
+- **NLP:** spaCy (entity extraction)
+- **Web Scraping:** httpx, BeautifulSoup4
+- **Export:** openpyxl (Excel)
+- **Frontend:** React (planned)
 
-1. **Ollama** (installed natively)
-   - Download: https://ollama.ai/download
-   - Verify: `ollama list` shows `gpt-oss:20b`
+---
 
-2. **Python 3.10+**
-   - Check: `python --version`
+## 📖 Documentation
 
-### Setup (5 minutes)
+- **[QUICKSTART.md](QUICKSTART.md)** - Setup and running guide
+- **[doc/ImplementationPlan.md](doc/ImplementationPlan.md)** - Development roadmap
+- **[doc/WebScraperRequirementDocument.md](doc/WebScraperRequirementDocument.md)** - Requirements specification
 
-```cmd
-REM 1. Navigate to backend directory
-cd backend
+---
 
-REM 2. Create virtual environment
-python -m venv venv
+## 🎯 Current Status
 
-REM 3. Activate virtual environment
-venv\Scripts\activate
+**Phase:** Increment 1 Complete ✅
 
-REM 4. Install dependencies
-pip install -r requirements.txt
+- ✅ Project setup and structure
+- ✅ Ollama integration
+- ✅ FastAPI endpoints (health, status, test)
+- ✅ Configuration management
+- ✅ Logging system
 
-REM 5. Download spaCy model
-python -m spacy download en_core_web_sm
+**Next:** Increment 2 - Configuration & Data Models
 
-REM 6. Configure environment
-cd ..
-copy .env.example .env
-REM Edit .env and set OLLAMA_MODEL=gpt-oss:20b
+---
 
-REM 7. Run the application
-cd backend
-uvicorn app.main:app --reload
+## 📡 API Endpoints
+
+- `GET /` - API information
+- `GET /api/v1/health` - Health check
+- `GET /api/v1/ollama/status` - Ollama connection status
+- `GET /api/v1/test/ollama` - Test LLM generation
+- `GET /docs` - Interactive API documentation
+
+---
+
+## ⚙️ Configuration
+
+Edit `.env` file:
+
+```env
+OLLAMA_MODEL=llama3.1:8b
+OLLAMA_URL=http://localhost:11434
+API_HOST=0.0.0.0
+API_PORT=8000
 ```
 
-### Test
+**Model Recommendations:**
+- **16GB+ RAM:** llama3.1:8b ⭐ (recommended)
+- **8-12GB RAM:** llama3.2:3b
+- **4-8GB RAM:** gemma3:1b
+
+---
+
+## 🧪 Testing
 
 ```cmd
-REM In a new terminal
+# Health check
 curl http://localhost:8000/api/v1/health
-curl http://localhost:8000/api/v1/ollama/status
-```
 
-Visit http://localhost:8000/docs for interactive API documentation.
+# Ollama status
+curl http://localhost:8000/api/v1/ollama/status
+
+# Test generation
+curl http://localhost:8000/api/v1/test/ollama
+```
 
 ---
 
-## 📚 Documentation
+## 🤝 Development
 
-- **[Requirements](doc/WebScraperRequirementDocument.md)** - Full project requirements
-- **[Architecture](doc/SimplifiedArchitectureDesign.md)** - System architecture and design
-- **[Implementation Plan](doc/ImplementationPlan.md)** - 12-increment development plan
-- **[Model Configuration](doc/ModelConfiguration.md)** - Ollama model selection guide
-- **[Backend README](backend/README.md)** - Detailed backend setup instructions
+See `doc/ImplementationPlan.md` for the 12-increment development plan.
+
+**Increments:**
+1. ✅ Project Setup & Ollama Integration
+2. 📋 Configuration & Data Models
+3. 📋 Web Scraping Engine
+4. 📋 NLP Entity Extraction
+5. 📋 Event Extraction with Ollama
+6. 📋 Query Matching & Relevance
+7. 📋 Search API Endpoint
+8. 📋 Excel Export Service
+9. 📋 React Frontend - Search Form
+10. 📋 React Frontend - Results Display
+11. 📋 Production Readiness
+12. 📋 Testing & Documentation
+
+---
+
+## � License
+
+Internal use only.
+
+---
+
+## 🆘 Support
+
+For issues or questions, see:
+- **Troubleshooting:** [QUICKSTART.md](QUICKSTART.md)
+- **Implementation Plan:** [doc/ImplementationPlan.md](doc/ImplementationPlan.md)
+
 
 ---
 
