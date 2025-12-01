@@ -70,12 +70,18 @@ python -m spacy download en_core_web_sm
 ### 3. Configure Environment
 
 ```cmd
-# Copy example environment file
+# Navigate to project root
+cd c:\Anu\APT\apt\defender\scraping\code
+
+# Copy example environment file (if not already exists)
 copy .env.example .env
 
 # Edit .env and set your preferred model
 notepad .env
 ```
+
+**Important:** The `.env` file should be in the **project root** directory:  
+`c:\Anu\APT\apt\defender\scraping\code\.env`
 
 **Recommended `.env` settings:**
 ```ini
@@ -190,16 +196,46 @@ pip install --force-reinstall fastapi uvicorn pydantic ollama
 pip install -r requirements.txt --force-reinstall
 ```
 
-### Issue: spaCy download fails (Python 3.13)
-**Solution:**
+### Issue: spaCy download fails (Python 3.13 compatibility)
+**Problem:** `ModuleNotFoundError: No module named 'srsly.ujson.ujson'`
+
+**Solution 1 - Reinstall with compatible versions:**
 ```cmd
-# Upgrade NumPy first
+# Uninstall problematic packages
+pip uninstall -y spacy thinc srsly
+
+# Upgrade NumPy to 2.x (Python 3.13 compatible)
 pip install --upgrade numpy
 
-# Then download spaCy model
-python -m spacy download en_core_web_sm
+# Reinstall spaCy (will get latest compatible versions)
+pip install spacy --no-cache-dir
 
-# Or skip for now - only needed in Increment 4
+# Download language model
+python -m spacy download en_core_web_sm
+```
+
+**Solution 2 - Use main .venv instead of backend/venv:**
+```cmd
+# Use the main virtual environment at code root
+cd c:\Anu\APT\apt\defender\scraping\code
+
+# Install in main .venv
+.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+
+# Download spaCy model
+.venv\Scripts\python.exe -m spacy download en_core_web_sm
+
+# Run server with main .venv
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+**Solution 3 - Skip spaCy for now (Recommended for Increment 1):**
+```cmd
+# spaCy is only needed for Increment 4 (NLP Entity Extraction)
+# You can proceed with Increments 1-3 without it
+
+# Just install core packages:
+pip install fastapi uvicorn pydantic pydantic-settings ollama loguru python-dotenv
 ```
 
 ---
