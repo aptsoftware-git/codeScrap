@@ -1,0 +1,97 @@
+# News Source Configurations
+# Configure web sources for event scraping
+
+sources:
+  # BBC News
+  - name: "BBC News"
+    base_url: "https://www.bbc.com"
+    enabled: true
+    search_url_template: "https://www.bbc.com/search?q={query}"
+    rate_limit: 2.0  # seconds between requests
+    selectors:
+      article_links: "a[data-testid='internal-link']"
+      title: "h1#main-heading"
+      content: "article[data-component='text-block']"
+      date: "time"
+      author: "span[data-testid='byline-name']"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # Reuters
+  - name: "Reuters"
+    base_url: "https://www.reuters.com"
+    enabled: true
+    search_url_template: "https://www.reuters.com/site-search/?query={query}"
+    rate_limit: 2.0
+    selectors:
+      article_links: "a.media-story-card__link"
+      title: "h1[data-testid='Heading']"
+      content: "div[data-testid='ArticleBody']"
+      date: "time"
+      author: "a[data-testid='Author']"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # The Guardian
+  - name: "The Guardian"
+    base_url: "https://www.theguardian.com"
+    enabled: true
+    search_url_template: "https://www.theguardian.com/search?q={query}"
+    rate_limit: 1.5
+    selectors:
+      article_links: "a.u-faux-block-link__overlay"
+      title: "h1.content__headline"
+      content: "div.content__article-body"
+      date: "time.content__dateline-wpd"
+      author: "a[rel='author']"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # Al Jazeera
+  - name: "Al Jazeera"
+    base_url: "https://www.aljazeera.com"
+    enabled: false  # Disabled by default
+    search_url_template: "https://www.aljazeera.com/search/{query}"
+    rate_limit: 2.5
+    selectors:
+      article_links: "a.u-clickable-card__link"
+      title: "h1.article-heading"
+      content: "div.wysiwyg"
+      date: "div.date-simple"
+      author: "div.author-name"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # Times of India
+  - name: "Times of India"
+    base_url: "https://timesofindia.indiatimes.com"
+    enabled: false  # Disabled by default - requires configuration
+    search_url_template: "https://timesofindia.indiatimes.com/topic/{query}"
+    rate_limit: 2.0
+    selectors:
+      article_links: "a.w_tle"
+      title: "h1.HNMDR"
+      content: "div._s30J"
+      date: "span.time_cptn"
+      author: "span.auth_nm"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+# Configuration Notes:
+# - enabled: Set to true to include this source in searches
+# - rate_limit: Minimum seconds to wait between requests to this domain
+# - selectors: CSS selectors for extracting content (adjust based on website structure)
+# - headers: HTTP headers to send with requests (customize as needed)
+#
+# To add a new source:
+# 1. Copy an existing source block
+# 2. Update name, base_url, and search_url_template
+# 3. Inspect the website to find correct CSS selectors
+# 4. Test with small rate_limit first, then adjust
+# 5. Set enabled: true when ready to use

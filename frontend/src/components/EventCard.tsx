@@ -1,0 +1,134 @@
+import React from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Box,
+  Link,
+} from '@mui/material';
+import {
+  Event as EventIcon,
+  LocationOn as LocationIcon,
+  CalendarToday as CalendarIcon,
+  Business as BusinessIcon,
+} from '@mui/icons-material';
+import { EventData } from '../types/events';
+import { format, parseISO } from 'date-fns';
+
+interface EventCardProps {
+  event: EventData;
+}
+
+const EventCard: React.FC<EventCardProps> = ({ event }) => {
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return 'Date TBD';
+    try {
+      const date = parseISO(dateString);
+      return format(date, 'PPP'); // e.g., "April 29, 2023"
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatLocation = (): string => {
+    if (!event.location) return 'Location TBD';
+    const { city, state, country, venue } = event.location;
+    const parts = [venue, city, state, country].filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const getRelevanceColor = (score: number | undefined): 'success' | 'warning' | 'default' => {
+    if (!score) return 'default';
+    if (score >= 0.7) return 'success';
+    if (score >= 0.5) return 'warning';
+    return 'default';
+  };
+
+  return (
+    <Card sx={{ mb: 2, '&:hover': { boxShadow: 6 } }}>
+      <CardContent>
+        {/* Title and Type */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Typography variant="h6" component="h3" sx={{ flex: 1 }}>
+            {event.url ? (
+              <Link href={event.url} target="_blank" rel="noopener noreferrer" underline="hover">
+                {event.title}
+              </Link>
+            ) : (
+              event.title
+            )}
+          </Typography>
+          {event.event_type && (
+            <Chip
+              icon={<EventIcon />}
+              label={event.event_type}
+              size="small"
+              sx={{ ml: 1 }}
+            />
+          )}
+        </Box>
+
+        {/* Description */}
+        {event.description && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {event.description}
+          </Typography>
+        )}
+
+        {/* Event Details */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 1 }}>
+          {/* Date */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <CalendarIcon fontSize="small" color="action" />
+            <Typography variant="body2" color="text.secondary">
+              {formatDate(event.date)}
+            </Typography>
+          </Box>
+
+          {/* Location */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <LocationIcon fontSize="small" color="action" />
+            <Typography variant="body2" color="text.secondary">
+              {formatLocation()}
+            </Typography>
+          </Box>
+
+          {/* Organizer */}
+          {event.organizer && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <BusinessIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                {event.organizer}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        {/* Relevance Score and Source */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+          {event.relevance_score !== undefined && (
+            <Chip
+              label={`Relevance: ${(event.relevance_score * 100).toFixed(0)}%`}
+              size="small"
+              color={getRelevanceColor(event.relevance_score)}
+            />
+          )}
+          {event.source_url && (
+            <Link
+              href={event.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="caption"
+              underline="hover"
+            >
+              Source
+            </Link>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default EventCard;
