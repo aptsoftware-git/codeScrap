@@ -6,6 +6,8 @@ import {
   Chip,
   Box,
   Link,
+  Checkbox,
+  CardActionArea,
 } from '@mui/material';
 import {
   Event as EventIcon,
@@ -18,9 +20,11 @@ import { format, parseISO } from 'date-fns';
 
 interface EventCardProps {
   event: EventData;
+  selected?: boolean;
+  onToggleSelect?: (event: EventData) => void;
 }
 
-const EventCard: React.FC<EventCardProps> = ({ event }) => {
+const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggleSelect }) => {
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'Date TBD';
     try {
@@ -45,29 +49,62 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     return 'default';
   };
 
+  const handleCardClick = () => {
+    if (onToggleSelect) {
+      onToggleSelect(event);
+    }
+  };
+
   return (
-    <Card sx={{ mb: 2, '&:hover': { boxShadow: 6 } }}>
-      <CardContent>
-        {/* Title and Type */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant="h6" component="h3" sx={{ flex: 1 }}>
-            {event.url ? (
-              <Link href={event.url} target="_blank" rel="noopener noreferrer" underline="hover">
-                {event.title}
-              </Link>
-            ) : (
-              event.title
+    <Card 
+      sx={{ 
+        mb: 2, 
+        '&:hover': { boxShadow: 6 },
+        border: selected ? '2px solid' : '1px solid',
+        borderColor: selected ? 'primary.main' : 'divider',
+        transition: 'all 0.2s ease-in-out',
+      }}
+    >
+      <CardActionArea onClick={handleCardClick} disabled={!onToggleSelect}>
+        <CardContent>
+          {/* Checkbox and Title */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+              {onToggleSelect && (
+                <Checkbox
+                  checked={selected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onToggleSelect(event);
+                  }}
+                  sx={{ mt: -1, ml: -1 }}
+                />
+              )}
+              <Typography variant="h6" component="h3" sx={{ flex: 1 }}>
+                {event.url ? (
+                  <Link 
+                    href={event.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    underline="hover"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {event.title}
+                  </Link>
+                ) : (
+                  event.title
+                )}
+              </Typography>
+            </Box>
+            {event.event_type && (
+              <Chip
+                icon={<EventIcon />}
+                label={event.event_type}
+                size="small"
+                sx={{ ml: 1 }}
+              />
             )}
-          </Typography>
-          {event.event_type && (
-            <Chip
-              icon={<EventIcon />}
-              label={event.event_type}
-              size="small"
-              sx={{ ml: 1 }}
-            />
-          )}
-        </Box>
+          </Box>
 
         {/* Description */}
         {event.description && (
@@ -121,12 +158,14 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
               rel="noopener noreferrer"
               variant="caption"
               underline="hover"
+              onClick={(e) => e.stopPropagation()}
             >
               Source
             </Link>
           )}
         </Box>
       </CardContent>
+      </CardActionArea>
     </Card>
   );
 };
