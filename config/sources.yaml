@@ -10,8 +10,8 @@ sources:
     rate_limit: 2.0  # seconds between requests
     selectors:
       article_links: "a[data-testid='internal-link']"
-      title: "h1#main-heading"
-      content: "article[data-component='text-block']"
+      title: "h1#main-heading, h1[id='main-heading'], h1.ssrcss-15xko80-StyledHeading, h1"
+      content: "article[data-component='text-block'], div[data-component='text-block'], div.ssrcss-1q0x1qg-Paragraph, article p, main p"
       date: "time"
       author: "span[data-testid='byline-name']"
     headers:

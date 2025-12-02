@@ -62,54 +62,39 @@ class EventExtractor:
         Returns:
             Formatted prompt for LLM
         """
-        prompt = f"""You are an expert at extracting structured event information from news articles.
+        # Truncate content to first 1500 characters to speed up processing
+        content_truncated = content[:1500] if len(content) > 1500 else content
+        
+        prompt = f"""Extract event info from this news article. Respond ONLY with JSON.
 
-Article Title: {title}
+Title: {title}
 
-Article Content:
-{content}
+Content: {content_truncated}
 
 """
         
-        if entities:
-            prompt += f"""
-Previously identified entities:
-- Persons: {', '.join(entities.persons) if entities.persons else 'None'}
-- Organizations: {', '.join(entities.organizations) if entities.organizations else 'None'}
-- Locations: {', '.join(entities.locations) if entities.locations else 'None'}
-- Dates: {', '.join(entities.dates) if entities.dates else 'None'}
-
-"""
+        if entities and (entities.persons or entities.organizations or entities.locations):
+            prompt += f"""Entities: """
+            entity_parts = []
+            if entities.persons:
+                entity_parts.append(f"People: {', '.join(entities.persons[:5])}")
+            if entities.organizations:
+                entity_parts.append(f"Orgs: {', '.join(entities.organizations[:5])}")
+            if entities.locations:
+                entity_parts.append(f"Places: {', '.join(entities.locations[:5])}")
+            prompt += '; '.join(entity_parts) + "\n\n"
         
-        prompt += f"""
-Extract the following information about the main event in this article:
-
-1. Event Type: Choose from: {', '.join([e.value for e in EventType])}
-2. Event Description: A brief 1-2 sentence summary of what happened
-3. Location: Where the event occurred (city, country, region)
-4. Date Information: When the event occurred or will occur
-5. Severity: Rate from 1-10 (1=minor, 10=catastrophic)
-6. Number of People Affected: Estimate if mentioned
-7. Key Actors: Main people or organizations involved
-
-Respond ONLY with a valid JSON object in this exact format:
+        prompt += f"""JSON format (respond with ONLY this, no other text):
 {{
-    "event_type": "one of the valid event types",
-    "description": "brief description",
-    "location": {{
-        "city": "city name or null",
-        "country": "country name or null",
-        "region": "region/state or null"
-    }},
-    "date_text": "date information as text",
+    "event_type": "{EventType.PROTEST.value}|{EventType.ATTACK.value}|{EventType.CYBER_ATTACK.value}|{EventType.NATURAL_DISASTER.value}|{EventType.ACCIDENT.value}|{EventType.ELECTION.value}|{EventType.CONFERENCE.value}|{EventType.OTHER.value}",
+    "description": "1-2 sentence summary",
+    "location": {{"city": "city or null", "country": "country or null", "region": "region or null"}},
+    "date_text": "when it occurred",
     "severity": 5,
     "people_affected": 0,
     "key_actors": ["actor1", "actor2"],
     "confidence": 0.85
-}}
-
-Remember: Respond with ONLY the JSON object, no additional text.
-"""
+}}"""
         
         return prompt
     
@@ -244,10 +229,12 @@ Remember: Respond with ONLY the JSON object, no additional text.
             # Create prompt
             prompt = self.create_extraction_prompt(title, content, entities)
             
-            # Get LLM response (synchronous call)
+            # Get LLM response with optimization parameters
             response = self.ollama.generate(
                 prompt=prompt,
-                model=None  # Use default model
+                model=None,  # Use default model
+                max_tokens=500,  # Limit response to 500 tokens (~2000 chars) for faster generation
+                temperature=0.3  # Lower temperature for more focused/deterministic output
             )
             
             if not response or not response.strip():

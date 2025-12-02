@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
-    ollama_timeout: int = 120
+    ollama_timeout: int = 120  # Timeout per LLM call in seconds
+    ollama_max_articles: int = 5  # Maximum articles to process with LLM per search
+    ollama_total_timeout: int = 480  # Total timeout for all LLM processing (8 minutes)
     
     # Sources
     sources_config_path: str = "../config/sources.yaml"

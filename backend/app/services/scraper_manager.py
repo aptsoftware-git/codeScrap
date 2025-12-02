@@ -181,7 +181,12 @@ class ScraperManager:
             
             # Validate content
             if not self.content_extractor.is_valid_content(content):
-                logger.warning(f"Invalid or insufficient content from {url}")
+                logger.warning(
+                    f"Invalid or insufficient content from {url} "
+                    f"(title_len={len(title) if title else 0}, "
+                    f"content_len={len(content) if content else 0}, "
+                    f"extracted_fields={list(extracted.keys())})"
+                )
                 return None
             
             # Create ArticleContent object

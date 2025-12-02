@@ -37,16 +37,30 @@ class ContentExtractor:
             soup = BeautifulSoup(html, self.parser)
             extracted = {}
             
+            logger.debug(f"Extracting with selectors: {selectors}")
+            
             for field, selector in selectors.items():
                 try:
-                    elements = soup.select(selector)
+                    # Support multiple fallback selectors separated by commas
+                    selector_list = [s.strip() for s in selector.split(',')]
+                    elements = []
+                    matched_selector = None
+                    
+                    # Try each selector until one matches
+                    for sel in selector_list:
+                        elements = soup.select(sel)
+                        if elements:
+                            matched_selector = sel
+                            break
+                    
                     if elements:
                         # Join text from all matching elements
                         text = ' '.join(el.get_text(strip=True) for el in elements)
                         extracted[field] = text if text else None
+                        logger.debug(f"  {field}: Found {len(elements)} elements with '{matched_selector}', extracted {len(text) if text else 0} chars")
                     else:
                         extracted[field] = None
-                        logger.debug(f"No elements found for selector '{selector}' (field: {field})")
+                        logger.debug(f"  {field}: No elements found for any selector in: {selector_list}")
                 except Exception as e:
                     logger.warning(f"Error extracting field '{field}': {e}")
                     extracted[field] = None

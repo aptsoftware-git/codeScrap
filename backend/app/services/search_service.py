@@ -4,8 +4,9 @@ Implements end-to-end search functionality for events.
 """
 
 import uuid
+import asyncio
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from loguru import logger
 
 from app.models import (
@@ -15,6 +16,7 @@ from app.models import (
     ArticleContent,
     SourceConfig
 )
+from app.settings import settings
 from app.services.config_manager import config_manager
 from app.services.scraper_manager import scraper_manager
 from app.services.entity_extractor import entity_extractor
@@ -292,7 +294,7 @@ class SearchService:
         articles: List[ArticleContent]
     ) -> List[EventData]:
         """
-        Extract events from articles using NLP and LLM.
+        Extract events from articles using NLP and LLM with timeout protection.
         
         Args:
             articles: List of articles to process
@@ -302,18 +304,55 @@ class SearchService:
         """
         events = []
         
-        for article in articles:
+        # Limit articles processed by LLM to improve performance
+        max_articles = settings.ollama_max_articles
+        articles_to_process = articles[:max_articles]
+        
+        if len(articles) > max_articles:
+            logger.info(f"Processing top {max_articles} of {len(articles)} articles with LLM")
+        
+        # Set overall timeout for LLM processing
+        total_timeout = settings.ollama_total_timeout
+        start_time = datetime.now()
+        
+        logger.info(f"Starting LLM extraction with {total_timeout}s total timeout")
+        
+        for i, article in enumerate(articles_to_process, 1):
             try:
-                # Extract event using event extractor
-                event_data = await event_extractor.extract_from_article(article)
+                # Check if we've exceeded total timeout
+                elapsed = (datetime.now() - start_time).total_seconds()
+                remaining = total_timeout - elapsed
                 
-                if event_data:
-                    events.append(event_data)
-                    logger.debug(f"Extracted event: {event_data.title[:50]}")
+                if remaining <= 0:
+                    logger.warning(f"Total timeout ({total_timeout}s) reached. Stopping after {i-1}/{len(articles_to_process)} articles")
+                    break
+                
+                # Set timeout for this article (either remaining time or per-article timeout)
+                article_timeout = min(remaining, settings.ollama_timeout)
+                
+                logger.debug(f"Processing article {i}/{len(articles_to_process)} with {article_timeout:.0f}s timeout")
+                
+                # Extract event with timeout
+                try:
+                    event_data = await asyncio.wait_for(
+                        event_extractor.extract_from_article(article),
+                        timeout=article_timeout
+                    )
+                    
+                    if event_data:
+                        events.append(event_data)
+                        logger.debug(f"Extracted event {i}: {event_data.title[:50]}")
+                    
+                except asyncio.TimeoutError:
+                    logger.warning(f"Timeout extracting event from article '{article.title[:50]}' after {article_timeout:.0f}s")
+                    continue
                 
             except Exception as e:
                 logger.error(f"Failed to extract event from article '{article.title[:50]}': {e}")
                 continue
+        
+        elapsed_total = (datetime.now() - start_time).total_seconds()
+        logger.info(f"LLM extraction completed: {len(events)} events from {len(articles_to_process)} articles in {elapsed_total:.1f}s")
         
         return events
     

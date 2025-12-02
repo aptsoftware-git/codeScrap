@@ -24,13 +24,21 @@ class OllamaClient:
         self.client = ollama.Client(host=base_url)
         logger.info(f"OllamaClient initialized with base_url={base_url}, model={default_model}")
     
-    def generate(self, prompt: str, model: Optional[str] = None) -> str:
+    def generate(
+        self, 
+        prompt: str, 
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7
+    ) -> str:
         """
         Generate completion from Ollama.
         
         Args:
             prompt: Input prompt
             model: Model name (uses default if None)
+            max_tokens: Maximum tokens to generate (limits response length)
+            temperature: Sampling temperature (0.0-1.0, lower = more focused)
             
         Returns:
             Generated text
@@ -42,7 +50,20 @@ class OllamaClient:
         
         try:
             logger.debug(f"Generating with model={model}, prompt_length={len(prompt)}")
-            response = self.client.generate(model=model, prompt=prompt)
+            
+            # Build generation options
+            options = {
+                "temperature": temperature,
+            }
+            
+            if max_tokens:
+                options["num_predict"] = max_tokens
+            
+            response = self.client.generate(
+                model=model, 
+                prompt=prompt,
+                options=options
+            )
             result = response['response']
             logger.debug(f"Generated response length: {len(result)}")
             return result
