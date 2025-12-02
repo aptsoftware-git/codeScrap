@@ -15,12 +15,12 @@ class RobotsChecker:
     Caches robots.txt files to minimize requests.
     """
     
-    def __init__(self, user_agent: str = "EventScraperBot/1.0", cache_duration: int = 3600):
+    def __init__(self, user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", cache_duration: int = 3600):
         """
         Initialize the robots.txt checker.
         
         Args:
-            user_agent: User agent string to check permissions for
+            user_agent: User agent string to check permissions for (default: browser-like)
             cache_duration: How long to cache robots.txt files (seconds)
         """
         self.user_agent = user_agent

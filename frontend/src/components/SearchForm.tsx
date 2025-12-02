@@ -163,21 +163,41 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
       let errorMessage = 'An error occurred while searching. Please try again.';
       
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { status: number; data?: { detail?: string }; statusText?: string }; request?: unknown; message?: string };
+        const axiosError = err as { 
+          response?: { 
+            status: number; 
+            data?: { detail?: string | Array<{ loc: string[]; msg: string; type: string }> }; 
+            statusText?: string 
+          }; 
+          request?: unknown; 
+          message?: string 
+        };
         
         if (axiosError.response) {
           // Backend returned an error response
           const status = axiosError.response.status;
           const detail = axiosError.response.data?.detail;
           
-          if (status === 400) {
-            errorMessage = `Invalid request: ${detail || 'Please check your search parameters'}`;
+          if (status === 422) {
+            // Pydantic validation error
+            if (Array.isArray(detail)) {
+              const errors = detail.map((validationError: { loc: string[]; msg: string }) => {
+                const field = validationError.loc?.slice(1).join('.') || 'field';
+                const message = validationError.msg || 'validation error';
+                return `${field}: ${message}`;
+              }).join('; ');
+              errorMessage = `Validation error: ${errors}`;
+            } else {
+              errorMessage = `Validation error: ${JSON.stringify(detail)}`;
+            }
+          } else if (status === 400) {
+            errorMessage = `Invalid request: ${typeof detail === 'string' ? detail : 'Please check your search parameters'}`;
           } else if (status === 500) {
-            errorMessage = `Server error: ${detail || 'The backend encountered an error'}`;
+            errorMessage = `Server error: ${typeof detail === 'string' ? detail : 'The backend encountered an error'}`;
           } else if (status === 404) {
             errorMessage = 'Search endpoint not found. Please verify the backend is running correctly.';
           } else {
-            errorMessage = `Server error (${status}): ${detail || axiosError.response.statusText}`;
+            errorMessage = `Server error (${status}): ${typeof detail === 'string' ? detail : axiosError.response.statusText}`;
           }
         } else if (axiosError.request) {
           // Request was made but no response received

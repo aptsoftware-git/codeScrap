@@ -37,8 +37,64 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  // Show message if no search has been performed yet
   if (!searchResults) {
     return null;
+  }
+
+  // Handle error states with user-friendly messages
+  if (searchResults.status === 'no_sources') {
+    return (
+      <Paper elevation={3} sx={{ p: 4, mt: 3, textAlign: 'center' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">No Sources Configured</Typography>
+        </Alert>
+        <Typography variant="body1" color="text.secondary">
+          No news sources are enabled. Please configure sources in the backend settings.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  if (searchResults.status === 'no_articles') {
+    return (
+      <Paper elevation={3} sx={{ p: 4, mt: 3, textAlign: 'center' }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="h6">No Articles Scraped</Typography>
+        </Alert>
+        <Typography variant="body1" color="text.secondary" paragraph>
+          Could not scrape articles from {searchResults.sources_scraped} source(s).
+        </Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          This might be due to:
+        </Typography>
+        <Box component="ul" sx={{ textAlign: 'left', maxWidth: 500, mx: 'auto', color: 'text.secondary' }}>
+          <li>Network connectivity issues</li>
+          <li>Website blocking the requests</li>
+          <li>Invalid source configurations</li>
+          <li>Backend server issues</li>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          <strong>Tip:</strong> Check the backend logs for detailed error messages.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  if (searchResults.status === 'no_events') {
+    return (
+      <Paper elevation={3} sx={{ p: 4, mt: 3, textAlign: 'center' }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="h6">No Events Extracted</Typography>
+        </Alert>
+        <Typography variant="body1" color="text.secondary" paragraph>
+          Scraped {searchResults.articles_scraped} article(s), but no events could be extracted.
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Try a different search phrase or adjust your filters.
+        </Typography>
+      </Paper>
+    );
   }
 
   const sortEvents = (events: EventData[]): EventData[] => {
@@ -157,8 +213,8 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
             Search Results
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Found {searchResults.total_matched} matching events from {searchResults.total_extracted} extracted events 
-            ({searchResults.total_scraped} articles scraped). Processing time: {searchResults.processing_time.toFixed(2)}s
+            Found {searchResults.events.length} events. 
+            Processing time: {(searchResults.processing_time_seconds || searchResults.processing_time || 0).toFixed(2)}s
             {totalPages > 1 && ` • Showing ${startIndex + 1}-${endIndex} of ${sortedEvents.length}`}
           </Typography>
 

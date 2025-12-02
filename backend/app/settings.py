@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     scraper_max_retries: int = 3
     scraper_retry_delay: int = 2
     scraper_user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    scraper_respect_robots: bool = False  # Set to True for production to respect robots.txt
     
     # Rate Limiting
     rate_limit_requests: int = 10

@@ -72,11 +72,16 @@ export interface SearchResponse {
   session_id: string;
   query: SearchQuery;
   events: EventData[];
-  total_scraped: number;
-  total_extracted: number;
-  total_matched: number;
-  processing_time: number;
-  sources_scraped: string[];
+  total_events?: number;  // For backward compatibility
+  total_scraped?: number;
+  total_extracted?: number;
+  total_matched?: number;
+  processing_time?: number;
+  processing_time_seconds?: number;  // New field from backend
+  articles_scraped?: number;  // New field from backend
+  sources_scraped?: number | string[];  // Can be count or array
+  status?: string;  // Status: 'success', 'no_sources', 'no_articles', 'no_events'
+  message?: string;  // Status message
 }
 
 export interface SessionResponse {

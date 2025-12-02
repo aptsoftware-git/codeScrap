@@ -3,8 +3,8 @@ Pydantic models for the Event Scraper API.
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import List, Optional, Dict, Any, Union
+from datetime import datetime, date
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -132,9 +132,34 @@ class SearchQuery(BaseModel):
     phrase: str = Field(..., min_length=1, description="Search phrase or keywords")
     location: Optional[str] = Field(None, description="Location filter (city, country, region)")
     event_type: Optional[EventType] = Field(None, description="Filter by event type")
-    date_from: Optional[datetime] = Field(None, description="Start date filter (ISO format)")
-    date_to: Optional[datetime] = Field(None, description="End date filter (ISO format)")
+    date_from: Optional[Union[datetime, date, str]] = Field(None, description="Start date filter (YYYY-MM-DD or ISO datetime)")
+    date_to: Optional[Union[datetime, date, str]] = Field(None, description="End date filter (YYYY-MM-DD or ISO datetime)")
     max_results: int = Field(default=50, ge=1, le=500, description="Maximum results to return")
+    
+    @field_validator('date_from', 'date_to', mode='before')
+    @classmethod
+    def parse_date(cls, v):
+        """Parse date string to datetime object."""
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v
+        if isinstance(v, date):
+            # Convert date to datetime at start of day
+            return datetime.combine(v, datetime.min.time())
+        if isinstance(v, str):
+            # Try to parse date-only string (YYYY-MM-DD)
+            try:
+                parsed_date = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return parsed_date
+            except ValueError:
+                # Try date-only format
+                try:
+                    parsed_date = datetime.strptime(v, '%Y-%m-%d')
+                    return parsed_date
+                except ValueError:
+                    raise ValueError(f"Invalid date format: {v}. Expected YYYY-MM-DD or ISO datetime")
+        return v
     
     @field_validator('date_to')
     @classmethod
