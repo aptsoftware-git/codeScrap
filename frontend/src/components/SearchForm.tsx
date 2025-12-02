@@ -9,6 +9,7 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  ListSubheader,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { EventType, SearchQuery, SearchResponse } from '../types/events';
@@ -17,6 +18,90 @@ interface SearchFormProps {
   onSearchComplete: (results: SearchResponse) => void;
   onSearchStart?: () => void;
 }
+
+// Helper function to get user-friendly event type labels
+const getEventTypeLabel = (type: EventType): string => {
+  const labels: Record<EventType, string> = {
+    // Violence & Security Events
+    [EventType.PROTEST]: 'Protest',
+    [EventType.DEMONSTRATION]: 'Demonstration',
+    [EventType.ATTACK]: 'Attack',
+    [EventType.EXPLOSION]: 'Explosion',
+    [EventType.BOMBING]: 'Bombing',
+    [EventType.SHOOTING]: 'Shooting',
+    [EventType.THEFT]: 'Theft',
+    [EventType.KIDNAPPING]: 'Kidnapping',
+    
+    // Cyber Events
+    [EventType.CYBER_ATTACK]: 'Cyber Attack',
+    [EventType.CYBER_INCIDENT]: 'Cyber Incident',
+    [EventType.DATA_BREACH]: 'Data Breach',
+    
+    // Meetings & Conferences
+    [EventType.CONFERENCE]: 'Conference',
+    [EventType.MEETING]: 'Meeting',
+    [EventType.SUMMIT]: 'Summit',
+    
+    // Disasters & Accidents
+    [EventType.ACCIDENT]: 'Accident',
+    [EventType.NATURAL_DISASTER]: 'Natural Disaster',
+    
+    // Political & Military
+    [EventType.ELECTION]: 'Election',
+    [EventType.POLITICAL_EVENT]: 'Political Event',
+    [EventType.MILITARY_OPERATION]: 'Military Operation',
+    
+    // Crisis Events
+    [EventType.TERRORIST_ACTIVITY]: 'Terrorist Activity',
+    [EventType.CIVIL_UNREST]: 'Civil Unrest',
+    [EventType.HUMANITARIAN_CRISIS]: 'Humanitarian Crisis',
+    
+    // Other
+    [EventType.OTHER]: 'Other',
+  };
+  return labels[type] || type;
+};
+
+// Organized event type categories
+const eventTypeCategories = {
+  'Violence & Security': [
+    EventType.PROTEST,
+    EventType.DEMONSTRATION,
+    EventType.ATTACK,
+    EventType.EXPLOSION,
+    EventType.BOMBING,
+    EventType.SHOOTING,
+    EventType.THEFT,
+    EventType.KIDNAPPING,
+  ],
+  'Cyber Events': [
+    EventType.CYBER_ATTACK,
+    EventType.CYBER_INCIDENT,
+    EventType.DATA_BREACH,
+  ],
+  'Meetings & Conferences': [
+    EventType.CONFERENCE,
+    EventType.MEETING,
+    EventType.SUMMIT,
+  ],
+  'Disasters & Accidents': [
+    EventType.ACCIDENT,
+    EventType.NATURAL_DISASTER,
+  ],
+  'Political & Military': [
+    EventType.ELECTION,
+    EventType.POLITICAL_EVENT,
+    EventType.MILITARY_OPERATION,
+  ],
+  'Crisis Events': [
+    EventType.TERRORIST_ACTIVITY,
+    EventType.CIVIL_UNREST,
+    EventType.HUMANITARIAN_CRISIS,
+  ],
+  'Other': [
+    EventType.OTHER,
+  ],
+};
 
 const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart }) => {
   const [formData, setFormData] = useState<SearchQuery>({
@@ -175,11 +260,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
               helperText="Filter by event type"
             >
               <MenuItem value="">All Types</MenuItem>
-              {Object.values(EventType).map((type) => (
-                <MenuItem key={type} value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </MenuItem>
-              ))}
+              {Object.entries(eventTypeCategories).map(([category, types]) => [
+                <ListSubheader key={category}>{category}</ListSubheader>,
+                ...types.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {getEventTypeLabel(type)}
+                  </MenuItem>
+                ))
+              ])}
             </TextField>
           </Grid>
 

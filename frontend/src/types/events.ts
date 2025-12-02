@@ -3,19 +3,41 @@
  */
 
 export enum EventType {
+  // Violence & Security Events
+  PROTEST = "protest",
+  DEMONSTRATION = "demonstration",
+  ATTACK = "attack",
+  EXPLOSION = "explosion",
+  BOMBING = "bombing",
+  SHOOTING = "shooting",
+  THEFT = "theft",
+  KIDNAPPING = "kidnapping",
+  
+  // Cyber Events
+  CYBER_ATTACK = "cyber_attack",
+  CYBER_INCIDENT = "cyber_incident",
+  DATA_BREACH = "data_breach",
+  
+  // Meetings & Conferences
   CONFERENCE = "conference",
   MEETING = "meeting",
-  WORKSHOP = "workshop",
-  SEMINAR = "seminar",
-  WEBINAR = "webinar",
-  TRAINING = "training",
   SUMMIT = "summit",
-  FORUM = "forum",
-  SYMPOSIUM = "symposium",
-  HACKATHON = "hackathon",
-  COMPETITION = "competition",
-  EXHIBITION = "exhibition",
-  NETWORKING = "networking",
+  
+  // Disasters & Accidents
+  ACCIDENT = "accident",
+  NATURAL_DISASTER = "natural_disaster",
+  
+  // Political & Military
+  ELECTION = "election",
+  POLITICAL_EVENT = "political_event",
+  MILITARY_OPERATION = "military_operation",
+  
+  // Crisis Events
+  TERRORIST_ACTIVITY = "terrorist_activity",
+  CIVIL_UNREST = "civil_unrest",
+  HUMANITARIAN_CRISIS = "humanitarian_crisis",
+  
+  // Other
   OTHER = "other"
 }
 
