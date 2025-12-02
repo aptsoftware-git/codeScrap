@@ -10,6 +10,7 @@ from loguru import logger
 
 from app.models import SourceConfig, ArticleContent
 from app.utils.rate_limiter import rate_limiter
+from app.utils.robots_checker import robots_checker
 from app.services.content_extractor import ContentExtractor
 
 
@@ -63,19 +64,32 @@ class ScraperManager:
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
-        rate_limit: float = 1.0
+        rate_limit: float = 1.0,
+        respect_robots: bool = True
     ) -> Optional[str]:
         """
-        Fetch content from a URL with retry logic and rate limiting.
+        Fetch content from a URL with retry logic, rate limiting, and robots.txt compliance.
         
         Args:
             url: URL to fetch
             headers: Optional custom headers
             rate_limit: Minimum delay between requests to this domain
+            respect_robots: Whether to respect robots.txt (default: True)
         
         Returns:
             HTML content or None if failed
         """
+        # Check robots.txt compliance
+        if respect_robots and not robots_checker.can_fetch(url):
+            logger.warning(f"Skipping {url} - disallowed by robots.txt")
+            return None
+        
+        # Get crawl delay from robots.txt if specified
+        robots_delay = robots_checker.get_crawl_delay(url)
+        if robots_delay and robots_delay > rate_limit:
+            logger.debug(f"Using robots.txt crawl delay of {robots_delay}s instead of {rate_limit}s")
+            rate_limit = robots_delay
+        
         domain = self._get_domain(url)
         merged_headers = self._merge_headers(headers)
         

@@ -9,6 +9,7 @@ import {
   Grid,
   Alert,
   Snackbar,
+  Pagination,
 } from '@mui/material';
 import {
   FileDownload as DownloadIcon,
@@ -26,9 +27,12 @@ interface EventListProps {
 
 type SortOption = 'relevance' | 'date' | 'title';
 
+const EVENTS_PER_PAGE = 50; // Configurable pagination size
+
 const EventList: React.FC<EventListProps> = ({ searchResults }) => {
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [selectedEvents, setSelectedEvents] = useState<Set<number>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -76,6 +80,20 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
   };
 
   const handleSelectAll = () => {
+    // Select all events on current page
+    const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
+    const endIndex = Math.min(startIndex + EVENTS_PER_PAGE, searchResults.events.length);
+    const pageIndices = new Set<number>();
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      pageIndices.add(i);
+    }
+    
+    setSelectedEvents((prev) => new Set([...prev, ...pageIndices]));
+  };
+
+  const handleSelectAllPages = () => {
+    // Select all events across all pages
     const allIndices = new Set(searchResults.events.map((_, index) => index));
     setSelectedEvents(allIndices);
   };
@@ -119,7 +137,16 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
     setExportError(null);
   };
 
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const sortedEvents = sortEvents(searchResults.events);
+  const totalPages = Math.ceil(sortedEvents.length / EVENTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
+  const endIndex = Math.min(startIndex + EVENTS_PER_PAGE, sortedEvents.length);
+  const paginatedEvents = sortedEvents.slice(startIndex, endIndex);
 
   return (
     <>
@@ -132,6 +159,7 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
           <Typography variant="body2" color="text.secondary" paragraph>
             Found {searchResults.total_matched} matching events from {searchResults.total_extracted} extracted events 
             ({searchResults.total_scraped} articles scraped). Processing time: {searchResults.processing_time.toFixed(2)}s
+            {totalPages > 1 && ` • Showing ${startIndex + 1}-${endIndex} of ${sortedEvents.length}`}
           </Typography>
 
           {/* Controls */}
@@ -163,9 +191,20 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
                   size="small"
                   startIcon={<SelectAllIcon />}
                   onClick={handleSelectAll}
-                  disabled={sortedEvents.length === 0}
+                  disabled={paginatedEvents.length === 0}
+                  title="Select all on this page"
                 >
-                  Select All
+                  Page
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<SelectAllIcon />}
+                  onClick={handleSelectAllPages}
+                  disabled={sortedEvents.length === 0}
+                  title="Select all across all pages"
+                >
+                  All
                 </Button>
                 <Button
                   variant="outlined"
@@ -218,19 +257,36 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
             </Typography>
           </Box>
         ) : (
-          <Box>
-            {sortedEvents.map((event, index) => {
-              const originalIndex = searchResults.events.indexOf(event);
-              return (
-                <EventCard 
-                  key={`${event.title}-${index}`} 
-                  event={event}
-                  selected={selectedEvents.has(originalIndex)}
-                  onToggleSelect={handleToggleEvent}
+          <>
+            <Box>
+              {paginatedEvents.map((event) => {
+                const originalIndex = searchResults.events.indexOf(event);
+                return (
+                  <EventCard 
+                    key={`${event.title}-${originalIndex}`} 
+                    event={event}
+                    selected={selectedEvents.has(originalIndex)}
+                    onToggleSelect={handleToggleEvent}
+                  />
+                );
+              })}
+            </Box>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Pagination 
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  color="primary"
+                  size="large"
+                  showFirstButton
+                  showLastButton
                 />
-              );
-            })}
-          </Box>
+              </Box>
+            )}
+          </>
         )}
       </Paper>
 
