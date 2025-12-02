@@ -71,11 +71,40 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
       
       const results = await apiService.searchEvents(formData);
       onSearchComplete(results);
-    } catch (err: unknown) {
+    } catch (err) {
       console.error('Search error:', err);
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'An error occurred while searching. Please try again.';
+      
+      // Better error handling with specific messages
+      let errorMessage = 'An error occurred while searching. Please try again.';
+      
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status: number; data?: { detail?: string }; statusText?: string }; request?: unknown; message?: string };
+        
+        if (axiosError.response) {
+          // Backend returned an error response
+          const status = axiosError.response.status;
+          const detail = axiosError.response.data?.detail;
+          
+          if (status === 400) {
+            errorMessage = `Invalid request: ${detail || 'Please check your search parameters'}`;
+          } else if (status === 500) {
+            errorMessage = `Server error: ${detail || 'The backend encountered an error'}`;
+          } else if (status === 404) {
+            errorMessage = 'Search endpoint not found. Please verify the backend is running correctly.';
+          } else {
+            errorMessage = `Server error (${status}): ${detail || axiosError.response.statusText}`;
+          }
+        } else if (axiosError.request) {
+          // Request was made but no response received
+          errorMessage = 'Cannot connect to server. Please ensure the backend is running on http://127.0.0.1:8000';
+        } else if (axiosError.message) {
+          // Something else happened
+          errorMessage = axiosError.message;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);

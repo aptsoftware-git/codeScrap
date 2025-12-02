@@ -7,7 +7,7 @@ import { SearchQuery, SearchResponse, SessionResponse, EventData } from '../type
 class ApiService {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = 'http://localhost:8000') {
+  constructor(baseURL: string = 'http://127.0.0.1:8000') {
     this.client = axios.create({
       baseURL,
       headers: {
@@ -21,7 +21,31 @@ class ApiService {
    * Execute a search with the given query parameters
    */
   async searchEvents(query: SearchQuery): Promise<SearchResponse> {
-    const response = await this.client.post<SearchResponse>('/api/v1/search', query);
+    // Clean the query - remove empty strings and undefined values
+    // Backend expects null/undefined for optional fields, not empty strings
+    const cleanedQuery: Partial<SearchQuery> = {
+      phrase: query.phrase.trim(),
+    };
+    
+    if (query.location?.trim()) {
+      cleanedQuery.location = query.location.trim();
+    }
+    
+    if (query.event_type) {
+      cleanedQuery.event_type = query.event_type;
+    }
+    
+    if (query.date_from) {
+      cleanedQuery.date_from = query.date_from;
+    }
+    
+    if (query.date_to) {
+      cleanedQuery.date_to = query.date_to;
+    }
+
+    console.log('Sending search request:', cleanedQuery);
+
+    const response = await this.client.post<SearchResponse>('/api/v1/search', cleanedQuery);
     return response.data;
   }
 
