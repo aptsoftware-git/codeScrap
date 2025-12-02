@@ -134,9 +134,9 @@ The frontend requires the backend API running on http://127.0.0.1:8000
   - Production build instructions
 
 ### Testing Documentation
-- **[doc/QUICKSTART_TEST.md](doc/QUICKSTART_TEST.md)** - 5-minute quick test guide
-- **[doc/TESTING_GUIDE.md](doc/TESTING_GUIDE.md)** - Comprehensive testing procedures
-- **[doc/TEST_RESULTS.md](doc/TEST_RESULTS.md)** - Pre-test verification and results template
+- **[test/QUICKSTART_TEST.md](test/QUICKSTART_TEST.md)** - 5-minute quick test guide
+- **[test/TESTING_GUIDE.md](test/TESTING_GUIDE.md)** - Comprehensive testing procedures
+- **[test/TEST_RESULTS.md](test/TEST_RESULTS.md)** - Pre-test verification and results template
 
 ### Implementation Documentation
 - **[doc/INCREMENT9_COMPLETE.md](doc/INCREMENT9_COMPLETE.md)** - Implementation summary

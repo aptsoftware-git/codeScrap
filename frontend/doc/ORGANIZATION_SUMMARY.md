@@ -12,26 +12,30 @@
 New directory structure:
 ```
 frontend/
-├── doc/                         # ← NEW: Documentation directory
+├── doc/                         # Documentation
 │   ├── INCREMENT9_COMPLETE.md
+│   ├── ORGANIZATION_SUMMARY.md
+│   └── REVIEW_INCREMENT9.md
+├── test/                        # ← NEW: Testing documentation
 │   ├── QUICKSTART_TEST.md
-│   ├── REVIEW_INCREMENT9.md
 │   ├── TESTING_GUIDE.md
 │   └── TEST_RESULTS.md
 ├── README.md                    # Project overview
-└── SETUP.md                     # ← NEW: Setup guide
+└── SETUP.md                     # Setup guide
 ```
 
 ---
 
 ### 2. Moved Documentation Files
 
-**Moved to `doc/` directory**:
+**Moved to `doc/` directory** (implementation docs):
 - ✅ `INCREMENT9_COMPLETE.md` → `doc/INCREMENT9_COMPLETE.md`
 - ✅ `REVIEW_INCREMENT9.md` → `doc/REVIEW_INCREMENT9.md`
-- ✅ `TESTING_GUIDE.md` → `doc/TESTING_GUIDE.md`
-- ✅ `TEST_RESULTS.md` → `doc/TEST_RESULTS.md`
-- ✅ `QUICKSTART_TEST.md` → `doc/QUICKSTART_TEST.md`
+
+**Moved to `test/` directory** (testing docs):
+- ✅ `TESTING_GUIDE.md` → `test/TESTING_GUIDE.md`
+- ✅ `TEST_RESULTS.md` → `test/TEST_RESULTS.md`
+- ✅ `QUICKSTART_TEST.md` → `test/QUICKSTART_TEST.md`
 
 **Kept in root** (user-facing):
 - ✅ `README.md` - Project overview
@@ -92,12 +96,12 @@ frontend/
 **First Time Setup** →
 1. Read `README.md` (overview)
 2. Follow `SETUP.md` (detailed setup)
-3. Test with `doc/QUICKSTART_TEST.md` (5-min test)
+3. Test with `test/QUICKSTART_TEST.md` (5-min test)
 
 **Testing & Verification** →
-1. Quick test: `doc/QUICKSTART_TEST.md`
-2. Full testing: `doc/TESTING_GUIDE.md`
-3. Record results: `doc/TEST_RESULTS.md`
+1. Quick test: `test/QUICKSTART_TEST.md`
+2. Full testing: `test/TESTING_GUIDE.md`
+3. Record results: `test/TEST_RESULTS.md`
 
 **Development & Review** →
 1. Implementation details: `doc/INCREMENT9_COMPLETE.md`
@@ -114,15 +118,21 @@ frontend/
 | `README.md` | Project overview, features | All users |
 | `SETUP.md` | Installation, configuration | New users, DevOps |
 
-### doc/ Directory (Detailed)
+### doc/ Directory (Implementation)
+
+| File | Purpose | Audience |
+|------|---------|----------|
+| `INCREMENT9_COMPLETE.md` | Implementation summary | Developers |
+| `REVIEW_INCREMENT9.md` | Detailed code review | Developers, Reviewers |
+| `ORGANIZATION_SUMMARY.md` | Documentation organization | All |
+
+### test/ Directory (Testing)
 
 | File | Purpose | Audience |
 |------|---------|----------|
 | `QUICKSTART_TEST.md` | 5-minute quick test | Testers, QA |
 | `TESTING_GUIDE.md` | Comprehensive testing | QA, Developers |
 | `TEST_RESULTS.md` | Pre-test verification, results | QA, Project managers |
-| `INCREMENT9_COMPLETE.md` | Implementation summary | Developers |
-| `REVIEW_INCREMENT9.md` | Detailed code review | Developers, Reviewers |
 
 ---
 
@@ -154,11 +164,11 @@ frontend/
 
 ### For Users
 - **Getting Started**: [README.md](../README.md) then [SETUP.md](../SETUP.md)
-- **Quick Test**: [doc/QUICKSTART_TEST.md](QUICKSTART_TEST.md)
+- **Quick Test**: [test/QUICKSTART_TEST.md](../test/QUICKSTART_TEST.md)
 
 ### For Testers
-- **Testing Guide**: [doc/TESTING_GUIDE.md](TESTING_GUIDE.md)
-- **Test Results**: [doc/TEST_RESULTS.md](TEST_RESULTS.md)
+- **Testing Guide**: [test/TESTING_GUIDE.md](../test/TESTING_GUIDE.md)
+- **Test Results**: [test/TEST_RESULTS.md](../test/TEST_RESULTS.md)
 
 ### For Developers
 - **Implementation**: [doc/INCREMENT9_COMPLETE.md](INCREMENT9_COMPLETE.md)
@@ -172,16 +182,19 @@ frontend/
 # Create doc directory
 New-Item -ItemType Directory -Path "doc"
 
-# Move documentation files
+# Move implementation documentation
 Move-Item -Path "INCREMENT9_COMPLETE.md" -Destination "doc/"
 Move-Item -Path "REVIEW_INCREMENT9.md" -Destination "doc/"
-Move-Item -Path "TESTING_GUIDE.md" -Destination "doc/"
-Move-Item -Path "TEST_RESULTS.md" -Destination "doc/"
-Move-Item -Path "QUICKSTART_TEST.md" -Destination "doc/"
+
+# Move testing documentation
+Move-Item -Path "TESTING_GUIDE.md" -Destination "test/"
+Move-Item -Path "TEST_RESULTS.md" -Destination "test/"
+Move-Item -Path "QUICKSTART_TEST.md" -Destination "test/"
 
 # Verify organization
 Get-ChildItem *.md
 Get-ChildItem doc\*.md
+Get-ChildItem test\*.md
 ```
 
 ---
@@ -204,8 +217,10 @@ Get-ChildItem doc\*.md
 
 ## Checklist
 
-- [x] Created `doc/` directory
-- [x] Moved 5 documentation files to `doc/`
+- [x] Created `doc/` directory for implementation docs
+- [x] Created `test/` directory for testing docs
+- [x] Moved 2 implementation files to `doc/`
+- [x] Moved 3 testing files to `test/`
 - [x] Created comprehensive `SETUP.md`
 - [x] Updated `README.md` with new structure
 - [x] Verified file organization
@@ -230,14 +245,16 @@ frontend/
 **After**:
 ```
 frontend/
-├── doc/                         # Organized documentation
+├── doc/                         # Implementation documentation
 │   ├── INCREMENT9_COMPLETE.md
+│   ├── ORGANIZATION_SUMMARY.md
+│   └── REVIEW_INCREMENT9.md
+├── test/                        # Testing documentation
 │   ├── QUICKSTART_TEST.md
-│   ├── REVIEW_INCREMENT9.md
 │   ├── TESTING_GUIDE.md
 │   └── TEST_RESULTS.md
 ├── README.md                    # Project overview
-└── SETUP.md                     # Setup guide (NEW)
+└── SETUP.md                     # Setup guide
 ```
 
 **Result**: ✅ Clean, professional, and easy to navigate

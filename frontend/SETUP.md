@@ -254,11 +254,11 @@ app.add_middleware(
 
 ### Detailed Testing
 
-See comprehensive testing guides in the `doc/` directory:
+See comprehensive testing guides in the `test/` directory:
 
-- **`doc/QUICKSTART_TEST.md`** - 5-minute quick test
-- **`doc/TESTING_GUIDE.md`** - Complete testing procedures
-- **`doc/TEST_RESULTS.md`** - Test execution template
+- **`test/QUICKSTART_TEST.md`** - 5-minute quick test
+- **`test/TESTING_GUIDE.md`** - Complete testing procedures
+- **`test/TEST_RESULTS.md`** - Test execution template
 
 ### Check Browser Console
 
@@ -574,8 +574,8 @@ npm run dev
 
 - **README.md** - Project overview and features
 - **SETUP.md** - This file (installation and setup)
-- **doc/QUICKSTART_TEST.md** - Quick testing guide
-- **doc/TESTING_GUIDE.md** - Comprehensive testing
+- **test/QUICKSTART_TEST.md** - Quick testing guide
+- **test/TESTING_GUIDE.md** - Comprehensive testing
 - **doc/INCREMENT9_COMPLETE.md** - Implementation details
 - **doc/REVIEW_INCREMENT9.md** - Code review
 
@@ -616,8 +616,8 @@ Before considering setup complete, verify:
 
 After successful setup:
 
-1. ✅ Run through quick test (5 minutes) - see `doc/QUICKSTART_TEST.md`
-2. ✅ Perform full testing (20 minutes) - see `doc/TESTING_GUIDE.md`
+1. ✅ Run through quick test (5 minutes) - see `test/QUICKSTART_TEST.md`
+2. ✅ Perform full testing (20 minutes) - see `test/TESTING_GUIDE.md`
 3. ✅ Customize for your needs
 4. ✅ Deploy to production (when ready)
 
