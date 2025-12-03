@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"
-    ollama_timeout: int = 120  # Timeout per LLM call in seconds
+    ollama_model: str = "gemma3:1b"  # Much faster model (815 MB, ~5-10 sec/article)
+    ollama_timeout: int = 60  # Reduced to 60s per article (gemma3 is faster)
     ollama_max_articles: int = 5  # Maximum articles to process with LLM per search
-    ollama_total_timeout: int = 480  # Total timeout for all LLM processing (8 minutes)
+    ollama_total_timeout: int = 300  # Reduced to 5 minutes total (gemma3 is much faster)
     
     # Sources
     sources_config_path: str = "../config/sources.yaml"
@@ -93,10 +93,12 @@ class Settings(BaseSettings):
         """Get full path to sources config."""
         return Path(__file__).parent.parent / self.sources_config_path
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore"  # Ignore extra fields in .env
+    }
 
 
 # Global settings instance

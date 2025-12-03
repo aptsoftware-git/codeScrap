@@ -49,11 +49,14 @@ class OllamaClient:
         model = model or self.default_model
         
         try:
-            logger.debug(f"Generating with model={model}, prompt_length={len(prompt)}")
+            logger.info(f"LLM call: model={model}, max_tokens={max_tokens}, temp={temperature}, prompt_len={len(prompt)}")
             
-            # Build generation options
+            # Build generation options with aggressive optimization
             options = {
                 "temperature": temperature,
+                "num_ctx": 2048,  # Reduce context window for faster processing
+                "top_k": 10,      # Limit top-k sampling for speed
+                "top_p": 0.9,     # Nucleus sampling
             }
             
             if max_tokens:
@@ -65,7 +68,7 @@ class OllamaClient:
                 options=options
             )
             result = response['response']
-            logger.debug(f"Generated response length: {len(result)}")
+            logger.info(f"LLM response: {len(result)} chars generated")
             return result
         except Exception as e:
             logger.error(f"Ollama generation failed: {e}")

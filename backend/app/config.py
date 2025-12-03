@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"  # Changed default to llama3.1:8b
+    ollama_model: str = "gemma3:1b"  # Much faster model (815 MB vs 4.9 GB)
     
     # API Configuration
     api_host: str = "0.0.0.0"
@@ -30,10 +30,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file: str = "logs/app.log"
     
-    class Config:
-        env_file = str(ROOT_DIR / ".env")
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": str(ROOT_DIR / "backend" / ".env"),
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore"
+    }
 
 
 # Global settings instance

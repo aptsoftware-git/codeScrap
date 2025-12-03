@@ -229,12 +229,12 @@ Content: {content_truncated}
             # Create prompt
             prompt = self.create_extraction_prompt(title, content, entities)
             
-            # Get LLM response with optimization parameters
+            # Get LLM response with aggressive optimization for speed
             response = self.ollama.generate(
                 prompt=prompt,
                 model=None,  # Use default model
-                max_tokens=500,  # Limit response to 500 tokens (~2000 chars) for faster generation
-                temperature=0.3  # Lower temperature for more focused/deterministic output
+                max_tokens=300,  # Reduced from 500 to 300 for faster generation
+                temperature=0.1  # Very low temperature for focused/deterministic output
             )
             
             if not response or not response.strip():
