@@ -41,9 +41,9 @@ const ExportButton: React.FC<ExportButtonProps> = ({
       if (sessionId) {
         // Export from session
         blob = await apiService.exportExcelFromSession(sessionId);
-      } else if (events.length > 0 && query) {
+      } else if (events.length > 0) {
         // Export custom events
-        blob = await apiService.exportExcelCustom(events, query);
+        blob = await apiService.exportExcelCustom(events);
       } else {
         throw new Error('No data to export');
       }

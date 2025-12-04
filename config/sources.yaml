@@ -2,12 +2,47 @@
 # Configure web sources for event scraping
 
 sources:
-  # BBC News
+  # DuckDuckGo (PRIMARY SOURCE - No bot detection, simple HTML)
+  - name: "DuckDuckGo"
+    base_url: "https://duckduckgo.com"
+    enabled: true
+    search_url_template: "https://html.duckduckgo.com/html/?q={query}"
+    rate_limit: 2.0
+    selectors:
+      # DuckDuckGo HTML version has simple structure
+      article_links: ".result__url"
+      title: "h1, h2, .article-title, [class*='title'], [class*='heading']"
+      content: "article, .article-content, .content, main p, .article-body, p"
+      date: "time, .date, .published, [class*='date'], [datetime]"
+      author: ".author, .byline, [rel='author'], [class*='author']"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # SATP - South Asia Terrorism Portal (DISABLED)
+  - name: "SATP"
+    base_url: "https://www.satp.org"
+    enabled: false
+    search_url_template: "https://www.satp.org/terrorist-activity/southasia?search={query}"
+    rate_limit: 3.0
+    selectors:
+      article_links: "a[href*='terrorist-activity'], a[href*='terrorism-assessment'], a[href*='south-asia-intelligence-review']"
+      title: "h1, h2.article-title, div.heading"
+      content: "article, div.content, div.article-body, p, div.text-block"
+      date: "time, span.date, div.date, span[class*='date']"
+      author: "span.author, div.author, a[rel='author']"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # BBC News (DISABLED)
   - name: "BBC News"
     base_url: "https://www.bbc.com"
-    enabled: true
+    enabled: false
     search_url_template: "https://www.bbc.com/search?q={query}"
-    rate_limit: 2.0  # seconds between requests
+    rate_limit: 2.0
     selectors:
       article_links: "a[data-testid='internal-link']"
       title: "h1#main-heading, h1[id='main-heading'], h1.ssrcss-15xko80-StyledHeading, h1"
@@ -19,10 +54,10 @@ sources:
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
       Accept-Language: "en-US,en;q=0.9"
 
-  # Reuters
+  # Reuters (DISABLED)
   - name: "Reuters"
     base_url: "https://www.reuters.com"
-    enabled: true
+    enabled: false
     search_url_template: "https://www.reuters.com/site-search/?query={query}"
     rate_limit: 2.0
     selectors:
@@ -35,10 +70,10 @@ sources:
       User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-  # The Guardian
+  # The Guardian (DISABLED)
   - name: "The Guardian"
     base_url: "https://www.theguardian.com"
-    enabled: true
+    enabled: false
     search_url_template: "https://www.theguardian.com/search?q={query}"
     rate_limit: 1.5
     selectors:
@@ -51,10 +86,10 @@ sources:
       User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-  # Al Jazeera
+  # Al Jazeera (DISABLED)
   - name: "Al Jazeera"
     base_url: "https://www.aljazeera.com"
-    enabled: false  # Disabled by default
+    enabled: false
     search_url_template: "https://www.aljazeera.com/search/{query}"
     rate_limit: 2.5
     selectors:
@@ -67,10 +102,10 @@ sources:
       User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-  # Times of India
+  # Times of India (DISABLED)
   - name: "Times of India"
     base_url: "https://timesofindia.indiatimes.com"
-    enabled: false  # Disabled by default - requires configuration
+    enabled: false
     search_url_template: "https://timesofindia.indiatimes.com/topic/{query}"
     rate_limit: 2.0
     selectors:
@@ -84,14 +119,37 @@ sources:
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
 # Configuration Notes:
-# - enabled: Set to true to include this source in searches
-# - rate_limit: Minimum seconds to wait between requests to this domain
-# - selectors: CSS selectors for extracting content (adjust based on website structure)
-# - headers: HTTP headers to send with requests (customize as needed)
-#
-# To add a new source:
-# 1. Copy an existing source block
-# 2. Update name, base_url, and search_url_template
-# 3. Inspect the website to find correct CSS selectors
-# 4. Test with small rate_limit first, then adjust
-# 5. Set enabled: true when ready to use
+# 
+# DuckDuckGo Search Configuration:
+# - Uses DuckDuckGo's HTML-only version (no JavaScript required)
+# - No bot detection or CAPTCHA
+# - Simple, clean HTML structure
+# - Unlimited queries (no API key needed)
+# - Rate limit: 2 seconds (respectful)
+# 
+# How it works:
+# 1. Searches DuckDuckGo HTML version with your query
+# 2. Extracts article links from search results
+# 3. Visits each article (limits to top 5 via OLLAMA_MAX_ARTICLES)
+# 4. Uses generic selectors that work on most news sites
+# 5. Processes with LLM for event extraction
+# 
+# Benefits:
+# - Simple: No API keys, no authentication
+# - Reliable: No bot detection or blocking
+# - Fast: HTML-only version loads quickly
+# - Comprehensive: Indexes all major news sites
+# 
+# Limitations:
+# - Results may differ slightly from Google
+# - HTML version has simpler formatting
+# 
+# Why not Google?
+# - Google blocks scrapers with bot detection
+# - Requires complex workarounds (Selenium, proxies, CAPTCHA solving)
+# - See doc/GOOGLE_BOT_DETECTION_ISSUE.md for details
+# 
+# To enable other sources:
+# - Set enabled: true for any source above
+# - Multiple sources can be enabled simultaneously
+

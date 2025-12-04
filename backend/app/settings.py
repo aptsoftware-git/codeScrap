@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:1b"  # Much faster model (815 MB, ~5-10 sec/article)
-    ollama_timeout: int = 60  # Reduced to 60s per article (gemma3 is faster)
+    ollama_model: str = "qwen2.5:3b"  # Qwen 2.5 3B - Good balance of speed and quality
+    ollama_timeout: int = 60  # Timeout per article
     ollama_max_articles: int = 5  # Maximum articles to process with LLM per search
-    ollama_total_timeout: int = 300  # Reduced to 5 minutes total (gemma3 is much faster)
+    ollama_total_timeout: int = 300  # 5 minutes total timeout
     
     # Sources
     sources_config_path: str = "../config/sources.yaml"

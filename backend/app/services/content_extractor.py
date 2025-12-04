@@ -166,6 +166,7 @@ class ContentExtractor:
     def extract_links(self, html: str, selector: str = 'a') -> List[str]:
         """
         Extract all links matching the selector.
+        Handles Google's /url?q= format and extracts the actual URL.
         
         Args:
             html: Raw HTML content
@@ -175,16 +176,50 @@ class ContentExtractor:
             List of URLs
         """
         try:
+            from urllib.parse import urlparse, parse_qs, unquote
+            
             soup = BeautifulSoup(html, self.parser)
             links = []
             
-            for element in soup.select(selector):
+            # Find all matching elements
+            elements = soup.select(selector)
+            logger.debug(f"Found {len(elements)} elements matching selector '{selector}'")
+            
+            for element in elements:
                 href = element.get('href')
                 if href:
+                    # Handle DuckDuckGo's redirect URLs: //duckduckgo.com/l/?uddg=...
+                    if 'duckduckgo.com/l/' in href and 'uddg=' in href:
+                        try:
+                            # Extract the 'uddg' parameter which contains the actual URL
+                            parsed = urlparse(href if href.startswith('http') else 'https:' + href)
+                            params = parse_qs(parsed.query)
+                            if 'uddg' in params:
+                                actual_url = unquote(params['uddg'][0])
+                                if actual_url.startswith(('http://', 'https://')):
+                                    links.append(actual_url)
+                                    logger.debug(f"Extracted DuckDuckGo URL: {actual_url}")
+                        except Exception as e:
+                            logger.debug(f"Failed to parse DuckDuckGo URL {href}: {e}")
+                    # Handle Google's /url?q= format
+                    elif href.startswith('/url?q='):
+                        try:
+                            # Parse the URL and extract the 'q' parameter
+                            parsed = urlparse(href)
+                            params = parse_qs(parsed.query)
+                            if 'q' in params:
+                                actual_url = unquote(params['q'][0])
+                                if actual_url.startswith(('http://', 'https://')):
+                                    links.append(actual_url)
+                                    logger.debug(f"Extracted Google URL: {actual_url}")
+                        except Exception as e:
+                            logger.debug(f"Failed to parse Google URL {href}: {e}")
                     # Filter out javascript:, mailto:, tel:, etc.
-                    if href.startswith(('http://', 'https://', '/')):
+                    elif href.startswith(('http://', 'https://')):
                         links.append(href)
+                        logger.debug(f"Added direct link: {href[:100]}...")
             
+            logger.info(f"Extracted {len(links)} total links")
             return links
             
         except Exception as e:

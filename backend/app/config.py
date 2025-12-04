@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:1b"  # Much faster model (815 MB vs 4.9 GB)
+    ollama_model: str = "qwen2.5:3b"  # Qwen 2.5 3B - Good balance of speed and quality
     
     # API Configuration
     api_host: str = "0.0.0.0"
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     user_agent: str = "EventScraperBot/1.0"
     
     # Logging
-    log_level: str = "INFO"
+    log_level: str = "DEBUG"  # Temporarily set to DEBUG for troubleshooting
     log_file: str = "logs/app.log"
     
     model_config = {

@@ -175,7 +175,7 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
         const selectedEventsArray = Array.from(selectedEvents)
           .map(index => searchResults.events[index])
           .filter(Boolean);
-        blob = await apiService.exportExcelCustom(selectedEventsArray, searchResults.query);
+        blob = await apiService.exportExcelCustom(selectedEventsArray);
       }
       
       apiService.downloadBlob(blob, filename);

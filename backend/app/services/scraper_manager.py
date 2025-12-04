@@ -244,9 +244,23 @@ class ScraperManager:
             
             # Extract article links
             link_selector = source_config.selectors.get('article_links', 'a')
+            logger.debug(f"Using link selector: {link_selector}")
+            
+            # DEBUG: Save HTML to file for analysis if no links found
+            if source_config.name == "Google Search":
+                import os
+                debug_file = os.path.join(os.path.dirname(__file__), "..", "..", "logs", "google_search.html")
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(html)
+                logger.debug(f"Saved Google search HTML to {debug_file}")
+            
             article_links = self.content_extractor.extract_links(html, link_selector)
             
             logger.info(f"Found {len(article_links)} article links from {source_config.name}")
+            if len(article_links) > 0:
+                logger.debug(f"First 5 links: {article_links[:5]}")
+            else:
+                logger.warning(f"No links found with selector: {link_selector}")
             
             # Scrape each article (up to max_articles)
             for link in article_links[:max_articles]:

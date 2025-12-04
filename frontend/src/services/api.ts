@@ -62,8 +62,8 @@ class ApiService {
    */
   async exportExcelFromSession(sessionId: string): Promise<Blob> {
     const response = await this.client.post(
-      '/api/v1/export/excel',
-      { session_id: sessionId },
+      `/api/v1/export/excel?session_id=${sessionId}`,
+      {},
       { responseType: 'blob' }
     );
     return response.data;
@@ -72,10 +72,10 @@ class ApiService {
   /**
    * Export custom events to Excel
    */
-  async exportExcelCustom(events: EventData[], query: SearchQuery): Promise<Blob> {
+  async exportExcelCustom(events: EventData[]): Promise<Blob> {
     const response = await this.client.post(
       '/api/v1/export/excel/custom',
-      { events, query },
+      events,  // Send events array directly, not wrapped in object
       { responseType: 'blob' }
     );
     return response.data;
