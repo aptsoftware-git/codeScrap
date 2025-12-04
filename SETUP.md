@@ -34,6 +34,9 @@ ollama pull llama3.2:3b
 
 # For 4-8GB RAM
 ollama pull gemma3:1b
+
+# For 4-8GB RAM
+ollama pull qwen2.5:3b
 ```
 
 **Check Ollama is Running:**
@@ -48,21 +51,23 @@ Should return: `Ollama is running`
 
 ```cmd
 # Navigate to project directory
-cd c:\Anu\APT\apt\defender\scraping\code
+cd c:\Anu\APT\apt\defender\scraping\code\backend
 
 # Create virtual environment (if not exists)
-python -m venv .venv
+python -m venv venv
 
 # Activate virtual environment
-.venv\Scripts\activate
+venv\Scripts\activate
 
 # Install dependencies
-cd backend
 pip install -r requirements.txt
 
 # Download spaCy language model (will be needed in Increment 4)
 # Note: May have compatibility issues with Python 3.13, can skip for now
 python -m spacy download en_core_web_sm
+
+#If there are issues with spaCy installation -
+pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 ```
 
 ---
