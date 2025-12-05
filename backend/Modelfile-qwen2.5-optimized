@@ -1,0 +1,16 @@
+# Optimized Ollama Configuration for qwen2.5:3b
+# For Dual Xeon Gold 6140 (72 threads, 128GB RAM)
+
+FROM qwen2.5:3b
+
+# Performance parameters
+PARAMETER num_thread 8              # Use 8 threads per inference (allows 4 parallel with 32 total threads)
+PARAMETER num_ctx 2048              # Context window (smaller = faster)
+PARAMETER temperature 0.7           # Sampling temperature
+PARAMETER top_k 10                  # Top-k sampling (lower = faster)
+PARAMETER top_p 0.9                 # Nucleus sampling
+PARAMETER repeat_penalty 1.1        # Reduce repetition
+PARAMETER num_predict 512           # Max tokens to generate
+
+# System prompt for event extraction
+SYSTEM You are an AI that extracts structured event data from news articles. Always respond with valid JSON only, no other text.

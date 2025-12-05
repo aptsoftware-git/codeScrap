@@ -315,41 +315,58 @@ class SearchService:
         total_timeout = settings.ollama_total_timeout
         start_time = datetime.now()
         
-        logger.info(f"Starting LLM extraction with {total_timeout}s total timeout")
+        logger.info(f"Starting parallel LLM extraction with {total_timeout}s total timeout, max {settings.max_concurrent_llm} concurrent")
         
-        for i, article in enumerate(articles_to_process, 1):
+        # Process articles in parallel batches for better CPU utilization
+        async def process_article_with_timeout(article, index):
+            """Process a single article with timeout."""
             try:
-                # Check if we've exceeded total timeout
                 elapsed = (datetime.now() - start_time).total_seconds()
                 remaining = total_timeout - elapsed
                 
                 if remaining <= 0:
-                    logger.warning(f"Total timeout ({total_timeout}s) reached. Stopping after {i-1}/{len(articles_to_process)} articles")
-                    break
+                    logger.warning(f"Total timeout reached for article {index}")
+                    return None
                 
-                # Set timeout for this article (either remaining time or per-article timeout)
                 article_timeout = min(remaining, settings.ollama_timeout)
+                logger.debug(f"Processing article {index}/{len(articles_to_process)} with {article_timeout:.0f}s timeout")
                 
-                logger.debug(f"Processing article {i}/{len(articles_to_process)} with {article_timeout:.0f}s timeout")
+                event_data = await asyncio.wait_for(
+                    event_extractor.extract_from_article(article),
+                    timeout=article_timeout
+                )
                 
-                # Extract event with timeout
-                try:
-                    event_data = await asyncio.wait_for(
-                        event_extractor.extract_from_article(article),
-                        timeout=article_timeout
-                    )
-                    
-                    if event_data:
-                        events.append(event_data)
-                        logger.debug(f"Extracted event {i}: {event_data.title[:50]}")
-                    
-                except asyncio.TimeoutError:
-                    logger.warning(f"Timeout extracting event from article '{article.title[:50]}' after {article_timeout:.0f}s")
-                    continue
+                if event_data:
+                    logger.debug(f"Extracted event {index}: {event_data.title[:50]}")
+                return event_data
                 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout extracting event from article '{article.title[:50]}' after {article_timeout:.0f}s")
+                return None
             except Exception as e:
                 logger.error(f"Failed to extract event from article '{article.title[:50]}': {e}")
-                continue
+                return None
+        
+        # Process articles in batches to limit concurrency
+        batch_size = settings.max_concurrent_llm
+        for batch_start in range(0, len(articles_to_process), batch_size):
+            batch_end = min(batch_start + batch_size, len(articles_to_process))
+            batch = articles_to_process[batch_start:batch_end]
+            
+            logger.info(f"Processing batch {batch_start//batch_size + 1}: articles {batch_start+1}-{batch_end}/{len(articles_to_process)}")
+            
+            # Process batch in parallel
+            tasks = [
+                process_article_with_timeout(article, batch_start + i + 1)
+                for i, article in enumerate(batch)
+            ]
+            
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Collect successful extractions
+            for result in batch_results:
+                if isinstance(result, EventData):
+                    events.append(result)
         
         elapsed_total = (datetime.now() - start_time).total_seconds()
         logger.info(f"LLM extraction completed: {len(events)} events from {len(articles_to_process)} articles in {elapsed_total:.1f}s")

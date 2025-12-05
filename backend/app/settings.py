@@ -60,8 +60,9 @@ class Settings(BaseSettings):
     enable_security_headers: bool = False
     api_key: str = ""
     
-    # Performance
-    max_concurrent_scrapes: int = 5
+    # Performance (optimized for dual Xeon Gold 6140 - 72 threads)
+    max_concurrent_scrapes: int = 10  # Increase parallel scraping
+    max_concurrent_llm: int = 4  # Process multiple articles with LLM in parallel
     max_events_per_search: int = 100
     
     # NLP

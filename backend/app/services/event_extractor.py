@@ -62,10 +62,10 @@ class EventExtractor:
         Returns:
             Formatted prompt for LLM
         """
-        # Truncate content to first 1500 characters to speed up processing
-        content_truncated = content[:1500] if len(content) > 1500 else content
+        # Truncate content for faster LLM processing while maintaining quality
+        content_truncated = content[:1200] if len(content) > 1200 else content
         
-        prompt = f"""Extract event info from this news article. Respond ONLY with JSON.
+        prompt = f"""Extract structured event data from this news article. Respond with JSON only.
 
 Title: {title}
 
@@ -229,12 +229,12 @@ Content: {content_truncated}
             # Create prompt
             prompt = self.create_extraction_prompt(title, content, entities)
             
-            # Get LLM response with aggressive optimization for speed
-            response = self.ollama.generate(
+            # Get LLM response asynchronously (non-blocking for true parallel processing)
+            response = await self.ollama.generate_async(
                 prompt=prompt,
                 model=None,  # Use default model
-                max_tokens=300,  # Reduced from 500 to 300 for faster generation
-                temperature=0.1  # Very low temperature for focused/deterministic output
+                max_tokens=350,  # Balanced for quality and speed
+                temperature=0.3  # Low but not zero - maintains some quality
             )
             
             if not response or not response.strip():

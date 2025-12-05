@@ -7,13 +7,13 @@ import { SearchQuery, SearchResponse, SessionResponse, EventData } from '../type
 class ApiService {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = 'http://127.0.0.1:8000') {
+  constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000') {
     this.client = axios.create({
       baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 600000, // 10 minutes for scraping + LLM processing
+      timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 600000, // 10 minutes for scraping + LLM processing
     });
   }
 

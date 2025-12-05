@@ -42,6 +42,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",      # Vite dev server (alternate)
         "http://localhost:3000",      # Optional: if using different port
         "http://127.0.0.1:3000",      # Optional: if using different port
+        "http://192.168.19.53:5173",  # LAN access
+        "http://192.168.19.53:8000",  # LAN backend
     ],
     allow_credentials=True,
     allow_methods=["*"],

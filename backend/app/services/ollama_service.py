@@ -3,6 +3,7 @@ Ollama client wrapper for LLM interactions.
 """
 
 import json
+import asyncio
 import ollama
 from typing import Optional, Dict, Any
 from loguru import logger
@@ -51,12 +52,15 @@ class OllamaClient:
         try:
             logger.info(f"LLM call: model={model}, max_tokens={max_tokens}, temp={temperature}, prompt_len={len(prompt)}")
             
-            # Build generation options with aggressive optimization
+            # Build generation options balanced for speed and quality on dual Xeon server
             options = {
                 "temperature": temperature,
-                "num_ctx": 2048,  # Reduce context window for faster processing
-                "top_k": 10,      # Limit top-k sampling for speed
-                "top_p": 0.9,     # Nucleus sampling
+                "num_ctx": 1536,  # Balanced context window
+                "num_thread": 10, # Balanced threading for parallel processing
+                "num_gpu": 0,     # CPU only
+                "top_k": 20,      # Reasonable diversity
+                "top_p": 0.9,     # Good nucleus sampling
+                "repeat_penalty": 1.1,  # Reduce repetition
             }
             
             if max_tokens:
@@ -73,6 +77,34 @@ class OllamaClient:
         except Exception as e:
             logger.error(f"Ollama generation failed: {e}")
             raise
+    
+    async def generate_async(
+        self, 
+        prompt: str, 
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Async version of generate that runs in thread pool to avoid blocking.
+        
+        Args:
+            prompt: Input prompt
+            model: Model name (uses default if None)
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            
+        Returns:
+            Generated text
+        """
+        # Run the blocking generate call in a thread pool
+        return await asyncio.to_thread(
+            self.generate,
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
     
     def generate_json(self, prompt: str, model: Optional[str] = None) -> Dict[str, Any]:
         """
