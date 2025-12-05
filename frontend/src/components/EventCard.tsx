@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,12 +8,20 @@ import {
   Link,
   Checkbox,
   CardActionArea,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
 import {
   Event as EventIcon,
   LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
   Business as BusinessIcon,
+  Close as CloseIcon,
+  Article as ArticleIcon,
 } from '@mui/icons-material';
 import { EventData } from '../types/events';
 import { format, parseISO } from 'date-fns';
@@ -25,6 +33,9 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggleSelect }) => {
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showFullTextModal, setShowFullTextModal] = useState(false);
+  
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'Date TBD';
     try {
@@ -106,11 +117,31 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
             )}
           </Box>
 
-        {/* Description */}
-        {event.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {event.description}
-          </Typography>
+        {/* Summary */}
+        {event.summary && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+              {(() => {
+                const lines = event.summary.split('\n');
+                if (showFullDescription || lines.length <= 3) {
+                  return event.summary;
+                }
+                return lines.slice(0, 3).join('\n') + '...';
+              })()}
+            </Typography>
+            {event.summary.split('\n').length > 3 && (
+              <Button
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullDescription(!showFullDescription);
+                }}
+                sx={{ mt: 0.5, textTransform: 'none' }}
+              >
+                {showFullDescription ? 'Show Less' : 'Show More'}
+              </Button>
+            )}
+          </Box>
         )}
 
         {/* Event Details */}
@@ -143,7 +174,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
         </Box>
 
         {/* Relevance Score and Source */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, gap: 2 }}>
           {event.relevance_score !== undefined && (
             <Chip
               label={`Relevance: ${(event.relevance_score * 100).toFixed(0)}%`}
@@ -151,21 +182,65 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
               color={getRelevanceColor(event.relevance_score)}
             />
           )}
-          {event.source_url && (
-            <Link
-              href={event.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="caption"
-              underline="hover"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Source
-            </Link>
-          )}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {event.full_content && (
+              <Link
+                component="button"
+                variant="caption"
+                underline="hover"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullTextModal(true);
+                }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+              >
+                <ArticleIcon fontSize="small" />
+                Full Text
+              </Link>
+            )}
+            {event.source_url && (
+              <Link
+                href={event.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="caption"
+                underline="hover"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Source
+              </Link>
+            )}
+          </Box>
         </Box>
       </CardContent>
       </CardActionArea>
+
+      {/* Full Text Modal */}
+      <Dialog
+        open={showFullTextModal}
+        onClose={() => setShowFullTextModal(false)}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Full Article Content</Typography>
+          <IconButton onClick={() => setShowFullTextModal(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="h6" gutterBottom>
+            {event.title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph sx={{ whiteSpace: 'pre-wrap' }}>
+            {event.full_content}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowFullTextModal(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

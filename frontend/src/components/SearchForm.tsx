@@ -228,18 +228,19 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Search for Events
-      </Typography>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+    <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+      <Paper elevation={3} sx={{ p: 3, mb: 3, width: '100%', maxWidth: { xs: '100%', md: '66.666%' } }}>
+        <Typography variant="h5" gutterBottom>
+          Search for Events
+        </Typography>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           {/* Search Phrase */}
           <Grid size={{ xs: 12 }}>
@@ -350,7 +351,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
           </Typography>
         </Box>
       )}
-    </Paper>
+      </Paper>
+    </Box>
   );
 };
 

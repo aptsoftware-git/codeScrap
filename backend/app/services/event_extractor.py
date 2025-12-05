@@ -281,7 +281,8 @@ Content: {content_truncated}
                 casualties=None,  # Can be extracted if mentioned
                 impact=parsed_data.get("description", ""),  # Use description as impact
                 confidence=max(0.0, min(1.0, parsed_data.get("confidence", 0.7))),
-                source_url=url  # Add source URL
+                source_url=url,  # Add source URL
+                full_content=content  # Store complete article text
             )
             
             logger.info(

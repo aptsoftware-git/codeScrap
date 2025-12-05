@@ -187,7 +187,8 @@ class ExcelExporter:
             "Participants",
             "Organizations",
             "Confidence",
-            "Source URL"
+            "Source URL",
+            "Full Context"
         ]
         
         # Write headers
@@ -248,6 +249,14 @@ class ExcelExporter:
             else:
                 cell = ws.cell(row=row_idx, column=9, value="")
                 self._apply_style(cell, cell_style)
+            
+            # Full Context (cleaned article content)
+            full_context = event.full_content if event.full_content else ""
+            # Clean up the text - remove excessive whitespace
+            full_context = " ".join(full_context.split())
+            cell = ws.cell(row=row_idx, column=10, value=full_context)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            self._apply_style(cell, cell_style)
         
         # Auto-adjust column widths
         self._auto_adjust_column_widths(ws)

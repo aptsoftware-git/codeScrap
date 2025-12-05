@@ -104,6 +104,7 @@ class EventData(BaseModel):
     impact: Optional[str] = None
     confidence: float = Field(ge=0.0, le=1.0)  # Extraction confidence score
     source_url: Optional[str] = None  # URL of the source article
+    full_content: Optional[str] = None  # Complete article text that was processed
     
     class Config:
         json_encoders = {

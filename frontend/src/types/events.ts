@@ -50,6 +50,7 @@ export interface Location {
 
 export interface EventData {
   title: string;
+  summary?: string;  // Event summary from LLM extraction
   date?: string;
   location?: Location;
   description?: string;
@@ -58,6 +59,7 @@ export interface EventData {
   organizer?: string;
   relevance_score?: number;
   source_url?: string;
+  full_content?: string;  // Complete article text
 }
 
 export interface SearchQuery {

@@ -41,19 +41,24 @@ function App() {
         </AppBar>
 
         {/* Main Content */}
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
-          <SearchForm 
-            onSearchComplete={handleSearchComplete}
-            onSearchStart={handleSearchStart}
-          />
+        <Box sx={{ mt: 4, mb: 4, flex: 1, width: '100%' }}>
+          {/* Search Form - Centered */}
+          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+            <SearchForm 
+              onSearchComplete={handleSearchComplete}
+              onSearchStart={handleSearchStart}
+            />
+          </Container>
+          
+          {/* Event List - Full Width */}
           <EventList searchResults={searchResults} />
-        </Container>
+        </Box>
 
         {/* Footer */}
         <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: (theme) => theme.palette.grey[200] }}>
-          <Container maxWidth="lg">
+          <Container maxWidth="xl">
             <Typography variant="body2" color="text.secondary" align="center">
-              Event Scraper & Analyzer - Powered by Ollama & spaCy
+              Developed by Apt Software Avenues Pvt. Ltd. (a Defender Framework tool)
             </Typography>
           </Container>
         </Box>

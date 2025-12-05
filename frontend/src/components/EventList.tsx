@@ -205,7 +205,8 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
   const paginatedEvents = sortedEvents.slice(startIndex, endIndex);
 
   return (
-    <>
+    <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+      <Box sx={{ width: '100%', maxWidth: { xs: '100%', md: '66.666%' } }}>
       <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -368,7 +369,8 @@ const EventList: React.FC<EventListProps> = ({ searchResults }) => {
           {exportError}
         </Alert>
       </Snackbar>
-    </>
+      </Box>
+    </Box>
   );
 };
 
