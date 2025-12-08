@@ -341,7 +341,7 @@ async def search_events_stream(
                 async for event in search_service.search_stream(
                     query=query,
                     session_id=session_id,
-                    max_articles=max_articles,
+                    max_articles_to_process=max_articles,
                     min_relevance_score=min_relevance_score
                 ):
                     # Format as SSE
