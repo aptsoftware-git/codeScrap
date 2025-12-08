@@ -52,15 +52,16 @@ class OllamaClient:
         try:
             logger.info(f"LLM call: model={model}, max_tokens={max_tokens}, temp={temperature}, prompt_len={len(prompt)}")
             
-            # Build generation options balanced for speed and quality on dual Xeon server
+            # Build generation options optimized for 16GB RAM, 4-core CPU
             options = {
                 "temperature": temperature,
-                "num_ctx": 1536,  # Balanced context window
-                "num_thread": 10, # Balanced threading for parallel processing
+                "num_ctx": 1024,  # Reduced context window (was 1536) to save memory
+                "num_thread": 4,  # Match CPU cores (was 10) - 4 cores = 8 threads
                 "num_gpu": 0,     # CPU only
                 "top_k": 20,      # Reasonable diversity
                 "top_p": 0.9,     # Good nucleus sampling
                 "repeat_penalty": 1.1,  # Reduce repetition
+                "num_batch": 128, # Smaller batch size to reduce memory usage
             }
             
             if max_tokens:

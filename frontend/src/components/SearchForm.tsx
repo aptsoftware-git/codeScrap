@@ -12,11 +12,14 @@ import {
   ListSubheader,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
-import { EventType, SearchQuery, SearchResponse } from '../types/events';
+import { EventType, SearchQuery, ProgressUpdate, EventData } from '../types/events';
 
 interface SearchFormProps {
-  onSearchComplete: (results: SearchResponse) => void;
   onSearchStart?: () => void;
+  onProgress?: (progress: ProgressUpdate) => void;
+  onEventReceived?: (event: EventData) => void;
+  onSearchComplete?: (summary: { message: string; total_events: number }) => void;
+  onError?: (error: string) => void;
 }
 
 // Helper function to get user-friendly event type labels
@@ -103,7 +106,13 @@ const eventTypeCategories = {
   ],
 };
 
-const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart }) => {
+const SearchForm: React.FC<SearchFormProps> = ({ 
+  onSearchStart, 
+  onProgress, 
+  onEventReceived, 
+  onSearchComplete,
+  onError 
+}) => {
   const [formData, setFormData] = useState<SearchQuery>({
     phrase: '',
     location: '',
@@ -151,68 +160,49 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearchComplete, onSearchStart
         onSearchStart();
       }
 
-      // Import API service dynamically to avoid circular dependencies
-      const { apiService } = await import('../services/api');
+      // Import streaming service
+      const { streamService } = await import('../services/streamService');
       
-      const results = await apiService.searchEvents(formData);
-      onSearchComplete(results);
+      // Start streaming search
+      streamService.startStreaming(formData, {
+        onProgress: (progress) => {
+          if (onProgress) {
+            onProgress(progress);
+          }
+        },
+        onEvent: (eventData) => {
+          if (onEventReceived) {
+            onEventReceived(eventData);
+          }
+        },
+        onComplete: (summary) => {
+          setLoading(false);
+          if (onSearchComplete) {
+            onSearchComplete(summary);
+          }
+        },
+        onCancelled: (summary) => {
+          setLoading(false);
+          if (onSearchComplete) {
+            onSearchComplete(summary);
+          }
+        },
+        onError: (errorMsg) => {
+          setLoading(false);
+          setError(errorMsg);
+          if (onError) {
+            onError(errorMsg);
+          }
+        },
+      });
     } catch (err) {
       console.error('Search error:', err);
-      
-      // Better error handling with specific messages
-      let errorMessage = 'An error occurred while searching. Please try again.';
-      
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { 
-          response?: { 
-            status: number; 
-            data?: { detail?: string | Array<{ loc: string[]; msg: string; type: string }> }; 
-            statusText?: string 
-          }; 
-          request?: unknown; 
-          message?: string 
-        };
-        
-        if (axiosError.response) {
-          // Backend returned an error response
-          const status = axiosError.response.status;
-          const detail = axiosError.response.data?.detail;
-          
-          if (status === 422) {
-            // Pydantic validation error
-            if (Array.isArray(detail)) {
-              const errors = detail.map((validationError: { loc: string[]; msg: string }) => {
-                const field = validationError.loc?.slice(1).join('.') || 'field';
-                const message = validationError.msg || 'validation error';
-                return `${field}: ${message}`;
-              }).join('; ');
-              errorMessage = `Validation error: ${errors}`;
-            } else {
-              errorMessage = `Validation error: ${JSON.stringify(detail)}`;
-            }
-          } else if (status === 400) {
-            errorMessage = `Invalid request: ${typeof detail === 'string' ? detail : 'Please check your search parameters'}`;
-          } else if (status === 500) {
-            errorMessage = `Server error: ${typeof detail === 'string' ? detail : 'The backend encountered an error'}`;
-          } else if (status === 404) {
-            errorMessage = 'Search endpoint not found. Please verify the backend is running correctly.';
-          } else {
-            errorMessage = `Server error (${status}): ${typeof detail === 'string' ? detail : axiosError.response.statusText}`;
-          }
-        } else if (axiosError.request) {
-          // Request was made but no response received
-          errorMessage = 'Cannot connect to server. Please ensure the backend is running on http://127.0.0.1:8000';
-        } else if (axiosError.message) {
-          // Something else happened
-          errorMessage = axiosError.message;
-        }
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while searching. Please try again.';
       setError(errorMessage);
-    } finally {
       setLoading(false);
+      if (onError) {
+        onError(errorMessage);
+      }
     }
   };
 

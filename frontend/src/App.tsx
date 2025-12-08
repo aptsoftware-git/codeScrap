@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Container, CssBaseline, ThemeProvider, createTheme, AppBar, Toolbar, Typography, Box } from '@mui/material';
 import SearchForm from './components/SearchForm';
 import EventList from './components/EventList';
-import { SearchResponse } from './types/events';
+import ProgressBar from './components/ProgressBar';
+import { EventData, ProgressUpdate } from './types/events';
+import { streamService } from './services/streamService';
 import './App.css';
 
 const theme = createTheme({
@@ -17,14 +19,66 @@ const theme = createTheme({
 });
 
 function App() {
-  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
-
-  const handleSearchComplete = (results: SearchResponse) => {
-    setSearchResults(results);
-  };
+  const [events, setEvents] = useState<EventData[]>([]);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [searchSummary, setSearchSummary] = useState<{ message: string; total_events: number } | null>(null);
 
   const handleSearchStart = () => {
-    setSearchResults(null);
+    // Reset state
+    setEvents([]);
+    setProgress(null);
+    setSearchSummary(null);
+    setIsStreaming(true);
+  };
+
+  const handleProgress = (progressUpdate: ProgressUpdate) => {
+    setProgress(progressUpdate);
+  };
+
+  const handleEventReceived = (event: EventData) => {
+    // Add event to list immediately
+    setEvents((prev) => [...prev, event]);
+  };
+
+  const handleSearchComplete = (summary: { message: string; total_events: number }) => {
+    setIsStreaming(false);
+    setProgress(null);
+    setSearchSummary(summary);
+  };
+
+  const handleError = (error: string) => {
+    console.error('Search error:', error);
+    setIsStreaming(false);
+    setProgress(null);
+  };
+
+  const handleCancel = async () => {
+    if (window.confirm('Are you sure you want to cancel the search? Already extracted events will be kept.')) {
+      try {
+        await streamService.cancel();
+        setIsStreaming(false);
+        setProgress(null);
+        
+        // Reset SearchForm state
+        handleSearchComplete({
+          message: `Search cancelled. ${events.length} event(s) extracted.`,
+          total_events: events.length,
+          articles_processed: 0,
+          processing_time: 0
+        });
+      } catch (error) {
+        console.error('Cancel error:', error);
+        setIsStreaming(false);
+        setProgress(null);
+        handleSearchComplete({
+          message: `Search cancelled. ${events.length} event(s) extracted.`,
+          total_events: events.length,
+          articles_processed: 0,
+          processing_time: 0
+        });
+      }
+    }
   };
 
   return (
@@ -45,13 +99,32 @@ function App() {
           {/* Search Form - Centered */}
           <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
             <SearchForm 
-              onSearchComplete={handleSearchComplete}
               onSearchStart={handleSearchStart}
+              onProgress={handleProgress}
+              onEventReceived={handleEventReceived}
+              onSearchComplete={handleSearchComplete}
+              onError={handleError}
             />
           </Container>
+
+          {/* Progress Bar */}
+          {isStreaming && progress && (
+            <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+              <ProgressBar progress={progress} onCancel={handleCancel} />
+            </Container>
+          )}
+
+          {/* Search Summary */}
+          {searchSummary && (
+            <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 }, mb: 2 }}>
+              <Typography variant="body1" color="success.main">
+                ✅ {searchSummary.message}
+              </Typography>
+            </Container>
+          )}
           
-          {/* Event List - Full Width */}
-          <EventList searchResults={searchResults} />
+          {/* Event List - Full Width - Shows events as they arrive */}
+          <EventList events={events} />
         </Box>
 
         {/* Footer */}

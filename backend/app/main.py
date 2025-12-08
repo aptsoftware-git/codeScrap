@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime
 from loguru import logger
+import json
+import asyncio
 
 from app.config import settings
 from app.utils.logger import setup_logging
@@ -21,7 +23,8 @@ from app.models import (
     EventData,
     ExtractedEntities,
     SearchQuery,
-    SearchResponse
+    SearchResponse,
+    SearchStatus
 )
 
 # Setup logging
@@ -254,6 +257,183 @@ async def search_events(
         raise HTTPException(
             status_code=500,
             detail=f"Search failed: {str(e)}"
+        )
+
+
+@app.get("/api/v1/search/stream")
+async def search_events_stream(
+    phrase: str,
+    location: str = None,
+    event_type: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    max_articles: int = 50,
+    min_relevance_score: float = 0.1
+):
+    """
+    Execute search with real-time Server-Sent Events (SSE) streaming.
+    
+    This endpoint streams events as they are extracted, allowing the frontend
+    to update in real-time instead of waiting for the entire search to complete.
+    
+    Event Types:
+        - progress: Progress updates (current/total, percentage, message)
+        - event: New event extracted (sent immediately)
+        - complete: Search completed successfully
+        - cancelled: Search cancelled by user
+        - error: Error occurred
+    
+    Args:
+        phrase: Search phrase (required)
+        location: Location filter (optional)
+        event_type: Event type filter (optional)
+        date_from: Start date filter YYYY-MM-DD (optional)
+        date_to: End date filter YYYY-MM-DD (optional)
+        max_articles: Maximum articles to scrape per source
+        min_relevance_score: Minimum relevance score (0.0-1.0)
+    
+    Returns:
+        StreamingResponse with Server-Sent Events
+    
+    Example:
+        ```javascript
+        const eventSource = new EventSource('/api/v1/search/stream?phrase=bombing');
+        eventSource.addEventListener('event', (e) => {
+            const eventData = JSON.parse(e.data);
+            // Add event to UI immediately
+        });
+        eventSource.addEventListener('progress', (e) => {
+            const progress = JSON.parse(e.data);
+            // Update progress bar
+        });
+        ```
+    """
+    try:
+        # Build SearchQuery from query parameters
+        query = SearchQuery(
+            phrase=phrase,
+            location=location if location else None,
+            event_type=event_type if event_type else None,
+            date_from=date_from if date_from else None,
+            date_to=date_to if date_to else None
+        )
+        
+        # Create session first
+        session_id = search_service.session_store.create_session(
+            query=query,
+            results=[],
+            status=SearchStatus.PENDING
+        )
+        
+        logger.info(f"Starting streaming search: session={session_id}, query='{query.phrase}'")
+        
+        async def event_generator():
+            """Generate SSE events."""
+            try:
+                # Send session_id first with proper SSE event type
+                yield f"event: session\n"
+                yield f"data: {json.dumps({'session_id': session_id})}\n\n"
+                
+                # Delay to ensure session event is received by frontend
+                await asyncio.sleep(1.0)
+                
+                # Stream search results
+                async for event in search_service.search_stream(
+                    query=query,
+                    session_id=session_id,
+                    max_articles=max_articles,
+                    min_relevance_score=min_relevance_score
+                ):
+                    # Format as SSE
+                    event_type = event.get("event_type", "message")
+                    data = event.get("data", {})
+                    
+                    # Send event
+                    yield f"event: {event_type}\n"
+                    yield f"data: {json.dumps(data)}\n\n"
+                    
+                    # Small delay to prevent overwhelming client
+                    await asyncio.sleep(0.01)
+                    
+            except asyncio.CancelledError:
+                logger.info(f"Client disconnected for session {session_id}")
+                search_service.session_store.cancel_session(session_id)
+                raise
+            except Exception as e:
+                logger.error(f"Stream error for session {session_id}: {e}", exc_info=True)
+                yield f"event: error\n"
+                yield f"data: {json.dumps({'message': str(e)})}\n\n"
+        
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
+                "X-Session-ID": session_id  # Send session ID in header for immediate access
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Streaming search endpoint failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Streaming search failed: {str(e)}"
+        )
+
+
+@app.post("/api/v1/search/cancel/{session_id}")
+async def cancel_search(session_id: str):
+    """
+    Cancel an ongoing search session.
+    
+    This endpoint marks a session as cancelled. The search will stop
+    processing new articles but will keep already extracted events.
+    
+    Args:
+        session_id: Session ID to cancel
+    
+    Returns:
+        Success message with number of events extracted before cancellation
+    
+    Example:
+        ```
+        POST /api/v1/search/cancel/550e8400-e29b-41d4-a716-446655440000
+        ```
+    """
+    try:
+        logger.info(f"Cancel request received for session {session_id}")
+        
+        session = search_service.session_store.get_session(session_id)
+        
+        if not session:
+            logger.warning(f"Session {session_id} not found")
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Cancel the session
+        search_service.session_store.cancel_session(session_id)
+        
+        # Get current results
+        results = search_service.session_store.get_results(session_id)
+        event_count = len(results) if results else 0
+        
+        logger.info(f"Session {session_id} cancelled. {event_count} event(s) extracted.")
+        
+        return {
+            "status": "cancelled",
+            "session_id": session_id,
+            "message": f"Search cancelled. {event_count} event(s) extracted.",
+            "events_extracted": event_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cancel endpoint failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cancel search: {str(e)}"
         )
 
 

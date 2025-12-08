@@ -1,5 +1,11 @@
 # News Source Configurations
 # Configure web sources for event scraping
+# 
+# Scraping Limits:
+# - max_search_results: Maximum URL results to extract from search page (default: 10)
+# - max_articles_to_process: Maximum articles to scrape and process with LLM (default: 5)
+# - These can be set globally in .env or per-source here (per-source overrides global)
+# - Validation: max_search_results must be > 0, and >= max_articles_to_process
 
 sources:
   # DuckDuckGo (PRIMARY SOURCE - No bot detection, simple HTML)
@@ -8,6 +14,9 @@ sources:
     enabled: true
     search_url_template: "https://html.duckduckgo.com/html/?q={query}"
     rate_limit: 2.0
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       # DuckDuckGo HTML version has simple structure
       article_links: ".result__url"

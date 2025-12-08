@@ -209,22 +209,66 @@ class ScraperManager:
         self,
         source_config: SourceConfig,
         query: str,
-        max_articles: int = 10
+        max_search_results: Optional[int] = None,
+        max_articles_to_process: Optional[int] = None,
+        cancellation_check: Optional[callable] = None
     ) -> List[ArticleContent]:
         """
-        Scrape articles from search results.
+        Scrape articles from search results with cancellation support.
         
         Args:
             source_config: Source configuration
             query: Search query
-            max_articles: Maximum number of articles to scrape
+            max_search_results: Maximum URL results to extract (overrides source config and global)
+            max_articles_to_process: Maximum articles to scrape (overrides source config and global)
+            cancellation_check: Optional function that returns True if operation should be cancelled
         
         Returns:
             List of ArticleContent objects
         """
         articles = []
         
+        # Determine effective limits with priority: param > source config > global settings
+        # 1. Get global defaults
+        effective_max_search_results = settings.max_search_results
+        effective_max_articles = settings.max_articles_to_process
+        
+        # 2. Override with source config if provided
+        if source_config.max_search_results is not None:
+            effective_max_search_results = source_config.max_search_results
+        if source_config.max_articles_to_process is not None:
+            effective_max_articles = source_config.max_articles_to_process
+        
+        # 3. Override with function parameters if provided
+        if max_search_results is not None:
+            effective_max_search_results = max_search_results
+        if max_articles_to_process is not None:
+            effective_max_articles = max_articles_to_process
+        
+        # Validation: max_search_results > 0
+        if effective_max_search_results <= 0:
+            logger.warning(f"Invalid max_search_results ({effective_max_search_results}), using default 10")
+            effective_max_search_results = 10
+        
+        # Validation: if max_search_results < max_articles_to_process, make them equal
+        if effective_max_search_results < effective_max_articles:
+            logger.info(
+                f"max_search_results ({effective_max_search_results}) < max_articles_to_process ({effective_max_articles}), "
+                f"setting max_search_results = max_articles_to_process"
+            )
+            effective_max_search_results = effective_max_articles
+        
+        logger.info(
+            f"[SCRAPING] Source {source_config.name}: max_search_results={effective_max_search_results}, "
+            f"max_articles_to_process={effective_max_articles}"
+        )
+        
         try:
+            # Check cancellation before starting
+            if cancellation_check and cancellation_check():
+                logger.info(f"[CANCELLED] Scraping cancelled before fetching search results from {source_config.name}")
+                return articles
+            
             # Build search URL
             if not source_config.search_url_template:
                 logger.warning(f"No search URL template for {source_config.name}")
@@ -232,6 +276,7 @@ class ScraperManager:
             
             search_url = source_config.search_url_template.format(query=query)
             
+            logger.info(f"[SCRAPING] Fetching search results from {source_config.name}: {search_url}")
             # Fetch search results page
             html = await self.fetch_url(
                 search_url,
@@ -240,6 +285,11 @@ class ScraperManager:
             )
             
             if not html:
+                return articles
+            
+            # Check cancellation after fetching search page
+            if cancellation_check and cancellation_check():
+                logger.info(f"[CANCELLED] Scraping cancelled after fetching search results from {source_config.name}")
                 return articles
             
             # Extract article links
@@ -256,20 +306,32 @@ class ScraperManager:
             
             article_links = self.content_extractor.extract_links(html, link_selector)
             
-            logger.info(f"Found {len(article_links)} article links from {source_config.name}")
+            # Limit links to max_search_results
+            article_links = article_links[:effective_max_search_results]
+            
+            logger.info(f"Found {len(article_links)} article links from {source_config.name} (limited to {effective_max_search_results})")
             if len(article_links) > 0:
                 logger.debug(f"First 5 links: {article_links[:5]}")
             else:
                 logger.warning(f"No links found with selector: {link_selector}")
             
-            # Scrape each article (up to max_articles)
-            for link in article_links[:max_articles]:
+            # Scrape each article (up to max_articles_to_process)
+            for idx, link in enumerate(article_links[:effective_max_articles], 1):
+                # Check cancellation before each article
+                if cancellation_check and cancellation_check():
+                    logger.info(f"[CANCELLED] Scraping cancelled at article {idx}/{len(article_links[:effective_max_articles])} from {source_config.name}")
+                    return articles  # Return what we've collected so far
+                
+                logger.info(f"[SCRAPING] Fetching article {idx}/{min(effective_max_articles, len(article_links))} from {source_config.name}: {link[:80]}...")
                 article = await self.scrape_article(link, source_config)
                 if article:
                     articles.append(article)
+                    logger.info(f"[SCRAPING] Successfully scraped article {idx} from {source_config.name}")
+                else:
+                    logger.warning(f"[SCRAPING] Failed to scrape article {idx} from {source_config.name}")
                 
                 # Stop if we have enough articles
-                if len(articles) >= max_articles:
+                if len(articles) >= effective_max_articles:
                     break
             
             logger.info(f"Scraped {len(articles)} articles from {source_config.name}")
@@ -283,7 +345,8 @@ class ScraperManager:
         self,
         sources: List[SourceConfig],
         query: str,
-        max_articles_per_source: int = 10
+        max_search_results: Optional[int] = None,
+        max_articles_to_process: Optional[int] = None
     ) -> List[ArticleContent]:
         """
         Scrape articles from multiple sources.
@@ -291,7 +354,8 @@ class ScraperManager:
         Args:
             sources: List of source configurations
             query: Search query
-            max_articles_per_source: Max articles to get from each source
+            max_search_results: Global override for max search results (optional)
+            max_articles_to_process: Global override for max articles to process (optional)
         
         Returns:
             Combined list of ArticleContent objects
@@ -309,7 +373,8 @@ class ScraperManager:
                 articles = await self.scrape_search_results(
                     source,
                     query,
-                    max_articles_per_source
+                    max_search_results,
+                    max_articles_to_process
                 )
                 all_articles.extend(articles)
                 logger.info(f"Got {len(articles)} articles from {source.name}")

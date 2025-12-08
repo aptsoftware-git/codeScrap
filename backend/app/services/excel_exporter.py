@@ -169,7 +169,7 @@ class ExcelExporter:
     
     def _create_events_sheet(self, workbook: Workbook, events: List[EventData]):
         """
-        Create the main events data sheet.
+        Create the main events data sheet with all required columns.
         
         Args:
             workbook: Workbook object
@@ -177,21 +177,29 @@ class ExcelExporter:
         """
         ws = workbook.create_sheet("Events", 0)
         
-        # Define headers
+        # Define headers - ALL REQUIRED FIELDS in specified order
         headers = [
-            "Event Type",
-            "Title",
+            "Event Title",
             "Summary",
-            "Location",
-            "Date/Time",
-            "Participants",
-            "Organizations",
-            "Confidence",
+            "Event Type",
+            "Perpetrator",
+            "Location (Full Text)",
+            "City",
+            "Region/State",
+            "Country",
+            "Event Date",
+            "Event Time",
+            "Individuals Involved",
+            "Organizations Involved",
+            "Casualties (Killed)",
+            "Casualties (Injured)",
+            "Source Name",
             "Source URL",
-            "Full Context"
+            "Article Publication Date",
+            "Extraction Confidence"
         ]
         
-        # Write headers
+        # Write headers with styling
         header_style = self._create_header_style()
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
@@ -202,69 +210,152 @@ class ExcelExporter:
             is_alt_row = (row_idx % 2) == 0
             cell_style = self._create_cell_style(is_alt_row)
             
-            # Event Type
-            cell = ws.cell(row=row_idx, column=1, value=event.event_type.value.upper())
-            self._apply_style(cell, cell_style)
+            col = 1
             
-            # Title
-            cell = ws.cell(row=row_idx, column=2, value=event.title)
+            # 1. Event Title
+            cell = ws.cell(row=row_idx, column=col, value=event.title)
             self._apply_style(cell, cell_style)
             cell.font = Font(bold=True)
+            col += 1
             
-            # Summary
-            cell = ws.cell(row=row_idx, column=3, value=event.summary)
+            # 2. Summary
+            cell = ws.cell(row=row_idx, column=col, value=event.summary)
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Location
-            location_str = str(event.location) if event.location else ""
-            cell = ws.cell(row=row_idx, column=4, value=location_str)
+            # 3. Event Type
+            cell = ws.cell(row=row_idx, column=col, value=event.event_type.value.upper().replace("_", " "))
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Date/Time
-            date_str = self._format_date(event.event_date)
-            cell = ws.cell(row=row_idx, column=5, value=date_str)
+            # 4. Perpetrator
+            cell = ws.cell(row=row_idx, column=col, value=event.perpetrator or "")
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Participants
-            participants_str = self._format_list(event.participants)
-            cell = ws.cell(row=row_idx, column=6, value=participants_str)
+            # 5. Location (Full Text)
+            location_full = str(event.location) if event.location else ""
+            cell = ws.cell(row=row_idx, column=col, value=location_full)
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Organizations
+            # 6. City
+            city = event.location.city if event.location else ""
+            cell = ws.cell(row=row_idx, column=col, value=city or "")
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 7. Region/State
+            region = event.location.region if event.location else ""
+            cell = ws.cell(row=row_idx, column=col, value=region or "")
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 8. Country
+            country = event.location.country if event.location else ""
+            cell = ws.cell(row=row_idx, column=col, value=country or "")
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 9. Event Date
+            event_date_str = ""
+            if event.event_date:
+                event_date_str = event.event_date.strftime("%Y-%m-%d")
+            cell = ws.cell(row=row_idx, column=col, value=event_date_str)
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 10. Event Time
+            cell = ws.cell(row=row_idx, column=col, value=event.event_time or "")
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 11. Individuals Involved
+            individuals_str = self._format_list(event.participants)
+            cell = ws.cell(row=row_idx, column=col, value=individuals_str)
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 12. Organizations Involved
             orgs_str = self._format_list(event.organizations)
-            cell = ws.cell(row=row_idx, column=7, value=orgs_str)
+            cell = ws.cell(row=row_idx, column=col, value=orgs_str)
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Confidence
-            confidence_str = f"{event.confidence:.0%}"
-            cell = ws.cell(row=row_idx, column=8, value=confidence_str)
+            # 13. Casualties (Killed)
+            killed = ""
+            if event.casualties and "killed" in event.casualties:
+                killed = str(event.casualties["killed"])
+            cell = ws.cell(row=row_idx, column=col, value=killed)
             self._apply_style(cell, cell_style)
+            col += 1
             
-            # Source URL (with hyperlink)
+            # 14. Casualties (Injured)
+            injured = ""
+            if event.casualties and "injured" in event.casualties:
+                injured = str(event.casualties["injured"])
+            cell = ws.cell(row=row_idx, column=col, value=injured)
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 15. Source Name
+            cell = ws.cell(row=row_idx, column=col, value=event.source_name or "")
+            self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 16. Source URL (with hyperlink)
             if event.source_url:
-                cell = ws.cell(row=row_idx, column=9, value=event.source_url)
+                cell = ws.cell(row=row_idx, column=col, value=event.source_url)
                 cell.hyperlink = event.source_url
                 cell.font = Font(color=self.LINK_COLOR, underline="single")
                 self._apply_style(cell, cell_style)
             else:
-                cell = ws.cell(row=row_idx, column=9, value="")
+                cell = ws.cell(row=row_idx, column=col, value="")
                 self._apply_style(cell, cell_style)
+            col += 1
             
-            # Full Context (cleaned article content)
-            full_context = event.full_content if event.full_content else ""
-            # Clean up the text - remove excessive whitespace
-            full_context = " ".join(full_context.split())
-            cell = ws.cell(row=row_idx, column=10, value=full_context)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            # 17. Article Publication Date
+            pub_date_str = ""
+            if event.article_published_date:
+                pub_date_str = event.article_published_date.strftime("%Y-%m-%d")
+            cell = ws.cell(row=row_idx, column=col, value=pub_date_str)
             self._apply_style(cell, cell_style)
+            col += 1
+            
+            # 18. Extraction Confidence
+            confidence_str = f"{event.confidence:.0%}"
+            cell = ws.cell(row=row_idx, column=col, value=confidence_str)
+            self._apply_style(cell, cell_style)
+            col += 1
         
         # Auto-adjust column widths
         self._auto_adjust_column_widths(ws)
         
-        # Freeze top row
-        ws.freeze_panes = "A2"
+        # Set specific column widths for better readability
+        ws.column_dimensions['A'].width = 40  # Event Title
+        ws.column_dimensions['B'].width = 60  # Summary
+        ws.column_dimensions['C'].width = 20  # Event Type
+        ws.column_dimensions['D'].width = 25  # Perpetrator
+        ws.column_dimensions['E'].width = 35  # Location (Full)
+        ws.column_dimensions['F'].width = 20  # City
+        ws.column_dimensions['G'].width = 20  # Region/State
+        ws.column_dimensions['H'].width = 20  # Country
+        ws.column_dimensions['I'].width = 15  # Event Date
+        ws.column_dimensions['J'].width = 15  # Event Time
+        ws.column_dimensions['K'].width = 30  # Individuals
+        ws.column_dimensions['L'].width = 30  # Organizations
+        ws.column_dimensions['M'].width = 12  # Casualties (Killed)
+        ws.column_dimensions['N'].width = 12  # Casualties (Injured)
+        ws.column_dimensions['O'].width = 20  # Source Name
+        ws.column_dimensions['P'].width = 50  # Source URL
+        ws.column_dimensions['Q'].width = 18  # Publication Date
+        ws.column_dimensions['R'].width = 15  # Confidence
         
-        logger.info(f"Created Events sheet with {len(events)} rows")
+        # Freeze top row and first column for easier navigation
+        ws.freeze_panes = "B2"
+        
+        logger.info(f"Created Events sheet with {len(events)} rows and {len(headers)} columns")
+    
     
     def _create_summary_sheet(self, workbook: Workbook, events: List[EventData]):
         """

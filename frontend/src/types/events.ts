@@ -48,18 +48,55 @@ export interface Location {
   venue?: string;
 }
 
+export interface Casualties {
+  killed?: number;
+  injured?: number;
+}
+
 export interface EventData {
+  // Core event information
+  event_type: EventType;
+  event_sub_type?: string;  // Secondary classification (e.g., "suicide bombing")
   title: string;
-  summary?: string;  // Event summary from LLM extraction
-  date?: string;
-  location?: Location;
-  description?: string;
-  url?: string;
-  event_type?: EventType;
-  organizer?: string;
-  relevance_score?: number;
+  summary: string;
+  
+  // Perpetrator information
+  perpetrator?: string;
+  perpetrator_type?: string;  // Classification of perpetrator
+  
+  // Location details
+  location: Location;
+  
+  // Temporal information
+  event_date?: string;  // ISO datetime string
+  event_time?: string;  // Time of day (HH:MM or text)
+  
+  // People and organizations
+  participants?: string[];
+  organizations?: string[];
+  
+  // Impact assessment
+  casualties?: Casualties;
+  impact?: string;
+  
+  // Source metadata
+  source_name?: string;
   source_url?: string;
-  full_content?: string;  // Complete article text
+  article_published_date?: string;  // ISO datetime string
+  collection_timestamp?: string;  // When system collected the content
+  
+  // Quality metrics
+  confidence: number;
+  
+  // Raw content
+  full_content?: string;
+  
+  // For compatibility (old fields)
+  date?: string;  // Alias for event_date
+  url?: string;   // Alias for source_url
+  organizer?: string;  // Deprecated
+  description?: string;  // Deprecated
+  relevance_score?: number;  // Added by matcher
 }
 
 export interface SearchQuery {
@@ -96,4 +133,27 @@ export interface SessionResponse {
   processing_time: number;
   sources_scraped: string[];
   timestamp: string;
+}
+
+// Streaming Types
+export interface ProgressUpdate {
+  current: number;
+  total: number;
+  status: string;
+  percentage: number;
+}
+
+export interface StreamEvent {
+  event_type: 'session' | 'progress' | 'event' | 'complete' | 'cancelled' | 'error';
+  session_id?: string;
+  data?: ProgressUpdate | EventData | { message: string; total_events?: number; articles_processed?: number; processing_time?: number };
+}
+
+export interface StreamCallbacks {
+  onSession?: (sessionId: string) => void;
+  onProgress?: (progress: ProgressUpdate) => void;
+  onEvent?: (event: EventData, index: number) => void;
+  onComplete?: (summary: { message: string; total_events: number; articles_processed: number; processing_time: number }) => void;
+  onCancelled?: (summary: { message: string; total_events: number }) => void;
+  onError?: (error: string) => void;
 }

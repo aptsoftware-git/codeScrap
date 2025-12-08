@@ -38,6 +38,17 @@ class EventType(str, Enum):
     # Political & Military
     ELECTION = "election"
     POLITICAL_EVENT = "political_event"
+
+
+class PerpetratorType(str, Enum):
+    """Classification of perpetrator types."""
+    TERRORIST_GROUP = "terrorist_group"
+    STATE_ACTOR = "state_actor"
+    CRIMINAL_ORGANIZATION = "criminal_organization"
+    INDIVIDUAL = "individual"
+    MULTIPLE_PARTIES = "multiple_parties"
+    UNKNOWN = "unknown"
+    NOT_APPLICABLE = "not_applicable"
     MILITARY_OPERATION = "military_operation"
     
     # Crisis Events
@@ -93,17 +104,41 @@ class ArticleContent(BaseModel):
 
 class EventData(BaseModel):
     """Structured event data extracted from article."""
+    # Core event information
     event_type: EventType
+    event_sub_type: Optional[str] = None  # Secondary classification (e.g., "suicide bombing", "mass shooting")
     title: str
     summary: str
-    location: Location
-    event_date: Optional[datetime] = None
-    participants: List[str] = Field(default_factory=list)
-    organizations: List[str] = Field(default_factory=list)
+    
+    # Perpetrator information (separate from participants)
+    perpetrator: Optional[str] = None  # Who carried out the event (for attacks, bombings, etc.)
+    perpetrator_type: Optional[PerpetratorType] = None  # Classification of perpetrator
+    
+    # Location details (full and parsed components)
+    location: Location  # Contains city, region, country parsed separately
+    
+    # Temporal information
+    event_date: Optional[datetime] = None  # When the event occurred
+    event_time: Optional[str] = None  # Time of day if available (HH:MM format or text like "morning")
+    
+    # People and organizations involved
+    participants: List[str] = Field(default_factory=list)  # Individuals involved
+    organizations: List[str] = Field(default_factory=list)  # Organizations involved
+    
+    # Impact assessment
     casualties: Optional[Dict[str, int]] = None  # {"killed": int, "injured": int}
     impact: Optional[str] = None
-    confidence: float = Field(ge=0.0, le=1.0)  # Extraction confidence score
+    
+    # Source metadata
+    source_name: Optional[str] = None  # News source name (e.g., "BBC News")
     source_url: Optional[str] = None  # URL of the source article
+    article_published_date: Optional[datetime] = None  # When article was published
+    collection_timestamp: Optional[datetime] = None  # When the system collected/scraped the content
+    
+    # Quality metrics
+    confidence: float = Field(ge=0.0, le=1.0)  # Extraction confidence score
+    
+    # Raw content for reference
     full_content: Optional[str] = None  # Complete article text that was processed
     
     class Config:
@@ -186,6 +221,10 @@ class SourceConfig(BaseModel):
     selectors: Dict[str, str] = Field(default_factory=dict)
     headers: Dict[str, str] = Field(default_factory=dict)
     
+    # Scraping limits (optional - if not set, global defaults are used)
+    max_search_results: Optional[int] = Field(None, description="Maximum URL results to extract from search (overrides global)")
+    max_articles_to_process: Optional[int] = Field(None, description="Maximum articles to scrape and process (overrides global)")
+    
     # Selectors that might be in the config
     # {
     #   "article_links": "a.article-link",
@@ -194,6 +233,35 @@ class SourceConfig(BaseModel):
     #   "date": "time.publish-date",
     #   "author": "span.author-name"
     # }
+
+
+class SearchStatus(str, Enum):
+    """Search session status."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ERROR = "error"
+
+
+class StreamEvent(BaseModel):
+    """SSE stream event for real-time updates."""
+    event_type: str  # 'progress', 'event', 'complete', 'error'
+    session_id: str
+    data: Dict[str, Any]
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+
+class ProgressUpdate(BaseModel):
+    """Progress update for SSE streaming."""
+    current: int  # Current article being processed
+    total: int  # Total articles to process
+    status: str  # Status message
+    percentage: float  # 0-100
 
 
 class SearchResponse(BaseModel):
@@ -205,7 +273,7 @@ class SearchResponse(BaseModel):
     processing_time_seconds: float
     articles_scraped: int = 0
     sources_scraped: int = 0
-    status: str = "success"  # success, no_sources, no_articles, no_events, error
+    status: str = "success"  # success, no_sources, no_articles, no_events, error, cancelled
     message: str = ""
     
     class Config:

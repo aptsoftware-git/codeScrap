@@ -14,7 +14,9 @@ from app.models import (
     SearchResponse,
     EventData,
     ArticleContent,
-    SourceConfig
+    SourceConfig,
+    SearchStatus,
+    ProgressUpdate
 )
 from app.settings import settings
 from app.services.config_manager import config_manager
@@ -26,21 +28,28 @@ from app.services.query_matcher import query_matcher
 
 class SessionStore:
     """
-    Simple in-memory session store for search results.
-    Stores search results by session ID for later retrieval/export.
+    In-memory session store for search results with streaming support.
+    Stores search results, status, and supports cancellation.
     """
     
     def __init__(self):
         self._sessions: Dict[str, Dict[str, Any]] = {}
+        self._cancelled_sessions: set = set()  # Track cancelled sessions
         logger.info("SessionStore initialized")
     
-    def create_session(self, query: SearchQuery, results: List[EventData]) -> str:
+    def create_session(
+        self,
+        query: SearchQuery,
+        results: Optional[List[EventData]] = None,
+        status: SearchStatus = SearchStatus.PENDING
+    ) -> str:
         """
-        Create a new session and store results.
+        Create a new session.
         
         Args:
             query: Original search query
-            results: List of matched events
+            results: Initial list of events (empty for streaming)
+            status: Initial session status
         
         Returns:
             Session ID (UUID)
@@ -49,13 +58,102 @@ class SessionStore:
         
         self._sessions[session_id] = {
             "query": query,
-            "results": results,
+            "results": results or [],
             "created_at": datetime.now(),
-            "result_count": len(results)
+            "result_count": len(results) if results else 0,
+            "status": status,
+            "progress": {
+                "current": 0,
+                "total": 0,
+                "percentage": 0.0,
+                "message": "Initializing..."
+            }
         }
         
-        logger.info(f"Created session {session_id} with {len(results)} results")
+        logger.info(f"Created session {session_id} with status {status}")
         return session_id
+    
+    def update_progress(
+        self,
+        session_id: str,
+        current: int,
+        total: int,
+        message: str = ""
+    ):
+        """
+        Update session progress.
+        
+        Args:
+            session_id: Session ID
+            current: Current item being processed
+            total: Total items to process
+            message: Status message
+        """
+        session = self._sessions.get(session_id)
+        if session:
+            percentage = (current / total * 100) if total > 0 else 0
+            session["progress"] = {
+                "current": current,
+                "total": total,
+                "percentage": round(percentage, 1),
+                "message": message
+            }
+            logger.debug(f"Session {session_id}: {current}/{total} - {message}")
+    
+    def add_result(self, session_id: str, event: EventData):
+        """
+        Add a single result to session (for streaming).
+        
+        Args:
+            session_id: Session ID
+            event: EventData to add
+        """
+        session = self._sessions.get(session_id)
+        if session:
+            session["results"].append(event)
+            session["result_count"] = len(session["results"])
+            logger.debug(f"Added event to session {session_id}, total: {session['result_count']}")
+    
+    def update_status(self, session_id: str, status: SearchStatus):
+        """
+        Update session status.
+        
+        Args:
+            session_id: Session ID
+            status: New status
+        """
+        session = self._sessions.get(session_id)
+        if session:
+            session["status"] = status
+            logger.info(f"Session {session_id} status: {status}")
+    
+    def cancel_session(self, session_id: str):
+        """
+        Mark session as cancelled.
+        
+        Args:
+            session_id: Session ID to cancel
+        """
+        logger.info(f"[SESSION-STORE] Cancelling session {session_id}")
+        logger.info(f"[SESSION-STORE] Cancelled sessions before: {self._cancelled_sessions}")
+        self._cancelled_sessions.add(session_id)
+        logger.info(f"[SESSION-STORE] Cancelled sessions after: {self._cancelled_sessions}")
+        self.update_status(session_id, SearchStatus.CANCELLED)
+        logger.warning(f"[SESSION-STORE] Session {session_id} marked as cancelled")
+    
+    def is_cancelled(self, session_id: str) -> bool:
+        """
+        Check if session is cancelled.
+        
+        Args:
+            session_id: Session ID to check
+        
+        Returns:
+            True if cancelled
+        """
+        is_cancelled = session_id in self._cancelled_sessions
+        # Only log occasionally to avoid spam
+        return is_cancelled
     
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -82,6 +180,27 @@ class SessionStore:
         session = self.get_session(session_id)
         return session["results"] if session else None
     
+    def get_progress(self, session_id: str) -> Optional[ProgressUpdate]:
+        """
+        Get session progress.
+        
+        Args:
+            session_id: Session ID
+        
+        Returns:
+            ProgressUpdate or None
+        """
+        session = self.get_session(session_id)
+        if session and "progress" in session:
+            prog = session["progress"]
+            return ProgressUpdate(
+                current=prog["current"],
+                total=prog["total"],
+                status=prog["message"],
+                percentage=prog["percentage"]
+            )
+        return None
+    
     def delete_session(self, session_id: str) -> bool:
         """
         Delete a session.
@@ -94,6 +213,7 @@ class SessionStore:
         """
         if session_id in self._sessions:
             del self._sessions[session_id]
+            self._cancelled_sessions.discard(session_id)
             logger.info(f"Deleted session {session_id}")
             return True
         return False
@@ -140,7 +260,7 @@ class SearchService:
     async def search(
         self,
         query: SearchQuery,
-        max_articles: int = 50,
+        max_articles_to_process: int = 50,
         min_relevance_score: float = 0.1
     ) -> SearchResponse:
         """
@@ -148,7 +268,7 @@ class SearchService:
         
         Args:
             query: Search query with filters
-            max_articles: Maximum articles to scrape per source
+            max_articles_to_process: Maximum articles to process per source (DEPRECATED - use global/source config)
             min_relevance_score: Minimum relevance score to include in results
         
         Returns:
@@ -177,9 +297,9 @@ class SearchService:
             
             logger.info(f"Using {len(sources)} enabled sources")
             
-            # Step 2: Scrape articles
-            logger.info(f"Scraping articles (max {max_articles} per source)...")
-            articles = await self._scrape_articles(sources, query.phrase, max_articles)
+            # Step 2: Scrape articles (uses global/source config)
+            logger.info(f"Scraping articles...")
+            articles = await self._scrape_articles(sources, query.phrase, max_articles_to_process)
             
             if not articles:
                 logger.warning("No articles scraped")
@@ -265,29 +385,66 @@ class SearchService:
         self,
         sources: List[SourceConfig],
         query: str,
-        max_articles: int
+        max_articles_to_process: int,
+        session_id: Optional[str] = None
     ) -> List[ArticleContent]:
         """
-        Scrape articles from configured sources.
+        Scrape articles from configured sources with cancellation support.
         
         Args:
             sources: List of source configurations
             query: Search query phrase
-            max_articles: Maximum articles per source
+            max_articles_to_process: Maximum articles to process per source (can be overridden by source config)
+            session_id: Optional session ID for cancellation checks
         
         Returns:
             List of scraped articles
         """
+        all_articles = []
+        
         try:
-            articles = await scraper_manager.scrape_sources(
-                sources=sources,
-                query=query,
-                max_articles_per_source=max_articles
-            )
-            return articles
+            logger.info(f"[SCRAPING] Starting scraping from {len(sources)} sources for query: '{query}' - Session: {session_id}")
+            
+            for idx, source in enumerate(sources, 1):
+                # Check for cancellation before each source
+                logger.info(f"[CANCEL-CHECK] Before source {idx}/{len(sources)} ({source.name}) - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id) if session_id else False}")
+                if session_id and self.session_store.is_cancelled(session_id):
+                    logger.warning(f"[CANCELLED] Search cancelled for session {session_id} during scraping at source {source.name}")
+                    return all_articles  # Return articles collected so far
+                
+                if not source.enabled:
+                    logger.debug(f"Skipping disabled source: {source.name}")
+                    continue
+                
+                try:
+                    logger.info(f"[SCRAPING] Starting source {idx}/{len(sources)}: {source.name} - Session {session_id}")
+                    # Scrape from this source (pass None to use source config or global defaults)
+                    articles = await scraper_manager.scrape_search_results(
+                        source,
+                        query,
+                        max_search_results=None,  # Use source config or global default
+                        max_articles_to_process=None,  # Use source config or global default
+                        cancellation_check=lambda: self.session_store.is_cancelled(session_id) if session_id else False
+                    )
+                    all_articles.extend(articles)
+                    logger.info(f"[SCRAPING] Got {len(articles)} articles from {source.name} - Session {session_id}")
+                    
+                    # Check for cancellation after each source
+                    logger.info(f"[CANCEL-CHECK] After source {idx}/{len(sources)} ({source.name}) - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id) if session_id else False}")
+                    if session_id and self.session_store.is_cancelled(session_id):
+                        logger.warning(f"[CANCELLED] Search cancelled for session {session_id} after scraping {source.name}")
+                        return all_articles  # Return articles collected so far
+                    
+                except Exception as e:
+                    logger.error(f"Error scraping {source.name}: {e}")
+                    continue
+            
+            logger.info(f"[SCRAPING] Total articles scraped: {len(all_articles)} - Session {session_id}")
+            return all_articles
+            
         except Exception as e:
             logger.error(f"Article scraping failed: {e}")
-            return []
+            return all_articles  # Return what we have so far
     
     async def _extract_events(
         self,
@@ -305,11 +462,11 @@ class SearchService:
         events = []
         
         # Limit articles processed by LLM to improve performance
-        max_articles = settings.ollama_max_articles
-        articles_to_process = articles[:max_articles]
+        max_articles_to_process = settings.max_articles_to_process
+        articles_to_process = articles[:max_articles_to_process]
         
-        if len(articles) > max_articles:
-            logger.info(f"Processing top {max_articles} of {len(articles)} articles with LLM")
+        if len(articles) > max_articles_to_process:
+            logger.info(f"Processing top {max_articles_to_process} of {len(articles)} articles with LLM")
         
         # Set overall timeout for LLM processing
         total_timeout = settings.ollama_total_timeout
@@ -416,6 +573,234 @@ class SearchService:
             List of events or None if session not found
         """
         return self.session_store.get_results(session_id)
+    
+    async def search_stream(
+        self,
+        query: SearchQuery,
+        session_id: str,
+        max_articles_to_process: int = 50,
+        min_relevance_score: float = 0.1
+    ):
+        """
+        Execute search pipeline with real-time streaming updates.
+        Yields events as they are extracted (for SSE).
+        
+        Args:
+            query: Search query with filters
+            session_id: Pre-created session ID
+            max_articles_to_process: Maximum articles to process (DEPRECATED - use global/source config)
+            min_relevance_score: Minimum relevance score
+        
+        Yields:
+            Dict with event_type and data for SSE streaming
+        """
+        start_time = datetime.now()
+        logger.info(f"Starting streaming search for session {session_id}: '{query.phrase}'")
+        
+        try:
+            # Update status to processing
+            self.session_store.update_status(session_id, SearchStatus.PROCESSING)
+            
+            # Step 1: Get enabled sources
+            yield {
+                "event_type": "progress",
+                "data": {"message": "Loading sources...", "current": 0, "total": 100, "percentage": 0}
+            }
+            
+            sources = config_manager.get_sources(enabled_only=True)
+            
+            if not sources:
+                self.session_store.update_status(session_id, SearchStatus.ERROR)
+                yield {
+                    "event_type": "error",
+                    "data": {"message": "No enabled sources configured"}
+                }
+                return
+            
+            # Step 2: Scrape articles
+            yield {
+                "event_type": "progress",
+                "data": {"message": f"Scraping articles from {len(sources)} source(s)...", "current": 10, "total": 100, "percentage": 10}
+            }
+            
+            # Check for cancellation before starting scraping (can be slow)
+            logger.info(f"[CANCEL-CHECK] Before scraping - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")
+            if self.session_store.is_cancelled(session_id):
+                logger.warning(f"[CANCELLED] Search cancelled for session {session_id} before scraping")
+                yield {
+                    "event_type": "cancelled",
+                    "data": {"message": "Search cancelled by user"}
+                }
+                return
+            
+            logger.info(f"[SCRAPING] Starting scraping for session {session_id}")
+            articles = await self._scrape_articles(sources, query.phrase, max_articles_to_process, session_id)
+            logger.info(f"[SCRAPING] Completed scraping for session {session_id} - Got {len(articles)} articles")
+            
+            # Check for cancellation after scraping
+            logger.info(f"[CANCEL-CHECK] After scraping - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")
+            if self.session_store.is_cancelled(session_id):
+                logger.warning(f"[CANCELLED] Search cancelled for session {session_id} after scraping")
+                yield {
+                    "event_type": "cancelled",
+                    "data": {"message": "Search cancelled by user"}
+                }
+                return
+            
+            if not articles:
+                self.session_store.update_status(session_id, SearchStatus.COMPLETED)
+                yield {
+                    "event_type": "complete",
+                    "data": {
+                        "message": "No articles found",
+                        "total_events": 0,
+                        "processing_time": (datetime.now() - start_time).total_seconds()
+                    }
+                }
+                return
+            
+            total_articles = len(articles)
+            logger.info(f"Scraped {total_articles} articles for session {session_id}")
+            
+            # Step 3: Extract events from articles ONE BY ONE (streaming)
+            yield {
+                "event_type": "progress",
+                "data": {
+                    "message": f"Processing {total_articles} article(s)...",
+                    "current": 20,
+                    "total": 100,
+                    "percentage": 20
+                }
+            }
+            
+            extracted_count = 0
+            
+            for idx, article in enumerate(articles, 1):
+                # Check for cancellation before each article
+                logger.info(f"[CANCEL-CHECK] Before article {idx}/{total_articles} - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")
+                if self.session_store.is_cancelled(session_id):
+                    logger.warning(f"[CANCELLED] Search cancelled for session {session_id} at article {idx}/{total_articles}")
+                    yield {
+                        "event_type": "cancelled",
+                        "data": {
+                            "message": f"Search cancelled. Extracted {extracted_count} event(s).",
+                            "total_events": extracted_count
+                        }
+                    }
+                    return
+                
+                # Update progress
+                progress_percentage = 20 + (idx / total_articles * 70)  # 20-90%
+                self.session_store.update_progress(
+                    session_id,
+                    current=idx,
+                    total=total_articles,
+                    message=f"Processing article {idx}/{total_articles}..."
+                )
+                
+                yield {
+                    "event_type": "progress",
+                    "data": {
+                        "message": f"Processing article {idx}/{total_articles}: {article.title[:50]}...",
+                        "current": idx,
+                        "total": total_articles,
+                        "percentage": round(progress_percentage, 1)
+                    }
+                }
+                
+                # Extract event from article
+                try:
+                    # Check cancellation BEFORE starting LLM extraction (expensive operation)
+                    logger.info(f"[CANCEL-CHECK] Before LLM extraction article {idx} - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")
+                    if self.session_store.is_cancelled(session_id):
+                        logger.warning(f"[CANCELLED] Search cancelled for session {session_id} before extracting article {idx}")
+                        yield {
+                            "event_type": "cancelled",
+                            "data": {
+                                "message": f"Search cancelled. Extracted {extracted_count} event(s).",
+                                "total_events": extracted_count
+                            }
+                        }
+                        return
+                    
+                    logger.info(f"[LLM] Starting extraction for article {idx}/{total_articles} - Session {session_id}")
+                    event = await event_extractor.extract_from_article(article)
+                    logger.info(f"[LLM] Completed extraction for article {idx}/{total_articles} - Session {session_id}")
+                    
+                    # Check cancellation AFTER extraction completes (in case it was cancelled during LLM call)
+                    logger.info(f"[CANCEL-CHECK] After LLM extraction article {idx} - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")
+                    if self.session_store.is_cancelled(session_id):
+                        logger.warning(f"[CANCELLED] Search cancelled for session {session_id} after extracting article {idx}")
+                        yield {
+                            "event_type": "cancelled",
+                            "data": {
+                                "message": f"Search cancelled. Extracted {extracted_count} event(s).",
+                                "total_events": extracted_count
+                            }
+                        }
+                        return
+                    
+                    if event:
+                        # Match event against query
+                        matched_events = self._match_events([event], query, min_relevance_score)
+                        
+                        if matched_events:
+                            # Event is relevant - add to session and stream it
+                            self.session_store.add_result(session_id, matched_events[0])
+                            extracted_count += 1
+                            
+                            # Stream the event to frontend immediately
+                            # Use model_dump(mode='json') to properly serialize datetime objects
+                            yield {
+                                "event_type": "event",
+                                "data": {
+                                    "event": matched_events[0].model_dump(mode='json'),
+                                    "index": extracted_count,
+                                    "article_index": idx,
+                                    "total_articles": total_articles
+                                }
+                            }
+                            
+                            logger.info(f"✅ Session {session_id}: Extracted event {extracted_count} from article {idx}/{total_articles}")
+                        else:
+                            logger.debug(f"Event from article {idx} not relevant enough (score < {min_relevance_score})")
+                    else:
+                        logger.warning(f"Failed to extract event from article {idx}")
+                        
+                except Exception as e:
+                    logger.error(f"Error extracting event from article {idx}: {e}")
+                    # Continue with next article
+                    continue
+            
+            # Step 4: Complete
+            processing_time = (datetime.now() - start_time).total_seconds()
+            self.session_store.update_status(session_id, SearchStatus.COMPLETED)
+            self.session_store.update_progress(
+                session_id,
+                current=total_articles,
+                total=total_articles,
+                message=f"Completed! Found {extracted_count} event(s)."
+            )
+            
+            yield {
+                "event_type": "complete",
+                "data": {
+                    "message": f"Search completed. Found {extracted_count} event(s).",
+                    "total_events": extracted_count,
+                    "articles_processed": total_articles,
+                    "processing_time": round(processing_time, 2)
+                }
+            }
+            
+            logger.info(f"✅ Streaming search completed for session {session_id}: {extracted_count} events in {processing_time:.2f}s")
+            
+        except Exception as e:
+            logger.error(f"Streaming search failed for session {session_id}: {e}", exc_info=True)
+            self.session_store.update_status(session_id, SearchStatus.ERROR)
+            yield {
+                "event_type": "error",
+                "data": {"message": f"Search failed: {str(e)}"}
+            }
     
     def cleanup_sessions(self):
         """Clean up old sessions (older than 24 hours)."""

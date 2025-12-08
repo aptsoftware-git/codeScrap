@@ -28,8 +28,11 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"  # Qwen 2.5 3B - Good balance of speed and quality
     ollama_timeout: int = 60  # Timeout per article
-    ollama_max_articles: int = 5  # Maximum articles to process with LLM per search
     ollama_total_timeout: int = 300  # 5 minutes total timeout
+    
+    # Scraping Limits (Global defaults - can be overridden per source)
+    max_search_results: int = 10  # Maximum URL results to extract from search page
+    max_articles_to_process: int = 5  # Maximum articles to scrape and process with LLM
     
     # Sources
     sources_config_path: str = "../config/sources.yaml"

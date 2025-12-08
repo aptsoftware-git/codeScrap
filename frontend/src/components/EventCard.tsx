@@ -22,9 +22,11 @@ import {
   Business as BusinessIcon,
   Close as CloseIcon,
   Article as ArticleIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { EventData } from '../types/events';
 import { format, parseISO } from 'date-fns';
+import { EventDetailsModal } from './EventDetailsModal';
 
 interface EventCardProps {
   event: EventData;
@@ -35,6 +37,7 @@ interface EventCardProps {
 const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggleSelect }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showFullTextModal, setShowFullTextModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'Date TBD';
@@ -150,7 +153,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <CalendarIcon fontSize="small" color="action" />
             <Typography variant="body2" color="text.secondary">
-              {formatDate(event.date)}
+              {formatDate(event.event_date || event.date)}
             </Typography>
           </Box>
 
@@ -162,26 +165,40 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
             </Typography>
           </Box>
 
-          {/* Organizer */}
-          {event.organizer && (
+          {/* Perpetrator */}
+          {(event.perpetrator || event.organizer) && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <BusinessIcon fontSize="small" color="action" />
               <Typography variant="body2" color="text.secondary">
-                {event.organizer}
+                {event.perpetrator || event.organizer}
               </Typography>
             </Box>
           )}
         </Box>
 
         {/* Relevance Score and Source */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, gap: 2 }}>
-          {event.relevance_score !== undefined && (
-            <Chip
-              label={`Relevance: ${(event.relevance_score * 100).toFixed(0)}%`}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {event.relevance_score !== undefined && (
+              <Chip
+                label={`Relevance: ${(event.relevance_score * 100).toFixed(0)}%`}
+                size="small"
+                color={getRelevanceColor(event.relevance_score)}
+              />
+            )}
+            {/* View Details Button */}
+            <Button
+              variant="outlined"
               size="small"
-              color={getRelevanceColor(event.relevance_score)}
-            />
-          )}
+              startIcon={<InfoIcon />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDetailsModal(true);
+              }}
+            >
+              Details
+            </Button>
+          </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             {event.full_content && (
               <Link
@@ -241,6 +258,13 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
           <Button onClick={() => setShowFullTextModal(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={event}
+        open={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+      />
     </Card>
   );
 };
