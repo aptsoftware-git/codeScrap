@@ -35,6 +35,9 @@ sources:
     enabled: false
     search_url_template: "https://www.satp.org/terrorist-activity/southasia?search={query}"
     rate_limit: 3.0
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a[href*='terrorist-activity'], a[href*='terrorism-assessment'], a[href*='south-asia-intelligence-review']"
       title: "h1, h2.article-title, div.heading"
@@ -52,6 +55,9 @@ sources:
     enabled: false
     search_url_template: "https://www.bbc.com/search?q={query}"
     rate_limit: 2.0
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a[data-testid='internal-link']"
       title: "h1#main-heading, h1[id='main-heading'], h1.ssrcss-15xko80-StyledHeading, h1"
@@ -69,6 +75,9 @@ sources:
     enabled: false
     search_url_template: "https://www.reuters.com/site-search/?query={query}"
     rate_limit: 2.0
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a.media-story-card__link"
       title: "h1[data-testid='Heading']"
@@ -85,6 +94,9 @@ sources:
     enabled: false
     search_url_template: "https://www.theguardian.com/search?q={query}"
     rate_limit: 1.5
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a.u-faux-block-link__overlay"
       title: "h1.content__headline"
@@ -101,6 +113,9 @@ sources:
     enabled: false
     search_url_template: "https://www.aljazeera.com/search/{query}"
     rate_limit: 2.5
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a.u-clickable-card__link"
       title: "h1.article-heading"
@@ -117,6 +132,9 @@ sources:
     enabled: false
     search_url_template: "https://timesofindia.indiatimes.com/topic/{query}"
     rate_limit: 2.0
+    # Scraping limits (optional - if not set, uses global defaults from .env)
+    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a.w_tle"
       title: "h1.HNMDR"
