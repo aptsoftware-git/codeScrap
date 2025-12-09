@@ -275,7 +275,29 @@ class SearchService:
             SearchResponse with results and metadata
         """
         start_time = datetime.now()
-        logger.info(f"Starting search: '{query.phrase}'")
+        
+        # Enhance search phrase with date context for better relevance
+        search_phrase = query.phrase
+        if query.date_from or query.date_to:
+            if query.date_from and query.date_to:
+                # Format: "bombing in kabul January 2023 to February 2023"
+                date_from_str = query.date_from.strftime('%B %Y') if isinstance(query.date_from, datetime) else str(query.date_from)
+                date_to_str = query.date_to.strftime('%B %Y') if isinstance(query.date_to, datetime) else str(query.date_to)
+                if date_from_str == date_to_str:
+                    search_phrase = f"{query.phrase} {date_from_str}"
+                else:
+                    search_phrase = f"{query.phrase} {date_from_str} to {date_to_str}"
+            elif query.date_from:
+                date_from_str = query.date_from.strftime('%B %Y') if isinstance(query.date_from, datetime) else str(query.date_from)
+                search_phrase = f"{query.phrase} after {date_from_str}"
+            elif query.date_to:
+                date_to_str = query.date_to.strftime('%B %Y') if isinstance(query.date_to, datetime) else str(query.date_to)
+                search_phrase = f"{query.phrase} before {date_to_str}"
+        else:
+            # No date specified - add "recent" for more relevant results
+            search_phrase = f"{query.phrase} recent"
+        
+        logger.info(f"Starting search: '{search_phrase}' (original: '{query.phrase}')")
         
         try:
             # Step 1: Get enabled sources
@@ -299,7 +321,7 @@ class SearchService:
             
             # Step 2: Scrape articles (uses global/source config)
             logger.info(f"Scraping articles...")
-            articles = await self._scrape_articles(sources, query.phrase, max_articles_to_process)
+            articles = await self._scrape_articles(sources, search_phrase, max_articles_to_process)
             
             if not articles:
                 logger.warning("No articles scraped")
@@ -595,7 +617,28 @@ class SearchService:
             Dict with event_type and data for SSE streaming
         """
         start_time = datetime.now()
-        logger.info(f"Starting streaming search for session {session_id}: '{query.phrase}'")
+        
+        # Enhance search phrase with date context for better relevance
+        search_phrase = query.phrase
+        if query.date_from or query.date_to:
+            if query.date_from and query.date_to:
+                date_from_str = query.date_from.strftime('%B %Y') if isinstance(query.date_from, datetime) else str(query.date_from)
+                date_to_str = query.date_to.strftime('%B %Y') if isinstance(query.date_to, datetime) else str(query.date_to)
+                if date_from_str == date_to_str:
+                    search_phrase = f"{query.phrase} {date_from_str}"
+                else:
+                    search_phrase = f"{query.phrase} {date_from_str} to {date_to_str}"
+            elif query.date_from:
+                date_from_str = query.date_from.strftime('%B %Y') if isinstance(query.date_from, datetime) else str(query.date_from)
+                search_phrase = f"{query.phrase} after {date_from_str}"
+            elif query.date_to:
+                date_to_str = query.date_to.strftime('%B %Y') if isinstance(query.date_to, datetime) else str(query.date_to)
+                search_phrase = f"{query.phrase} before {date_to_str}"
+        else:
+            # No date specified - add "recent" for more relevant results
+            search_phrase = f"{query.phrase} recent"
+        
+        logger.info(f"Starting streaming search for session {session_id}: '{search_phrase}' (original: '{query.phrase}')")
         
         try:
             # Update status to processing
@@ -634,7 +677,7 @@ class SearchService:
                 return
             
             logger.info(f"[SCRAPING] Starting scraping for session {session_id}")
-            articles = await self._scrape_articles(sources, query.phrase, max_articles_to_process, session_id)
+            articles = await self._scrape_articles(sources, search_phrase, max_articles_to_process, session_id)
             logger.info(f"[SCRAPING] Completed scraping for session {session_id} - Got {len(articles)} articles")
             
             # Check for cancellation after scraping

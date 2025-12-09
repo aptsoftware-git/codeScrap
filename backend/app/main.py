@@ -5,7 +5,7 @@ Main FastAPI application entry point.
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from loguru import logger
 import json
 import asyncio
@@ -306,6 +306,7 @@ async def search_events_stream(
     """
     try:
         # Build SearchQuery from query parameters
+        # No default date range - let search engines and "recent" keyword handle recency
         query = SearchQuery(
             phrase=phrase,
             location=location if location else None,

@@ -101,7 +101,7 @@ STEP 3: Use null for ANY field where information is not explicitly mentioned
 STEP 4: Write a concise summary (3-4 sentences maximum, capturing the key points)
 
 EVENT TYPES (choose the ONE that best matches THIS article):
-- meeting, summit, conference: Diplomatic meetings, trade talks, official visits
+- meeting, summit, conference: Diplomatic meetings, trade talks, official visits, state visits
 - political_event, election: Political activities, campaigns, government actions
 - bombing, explosion, shooting, attack: Violent incidents (ONLY if this article is about such an incident)
 - terrorist_activity: Terror-related acts
@@ -267,10 +267,18 @@ JSON OUTPUT (extract from THIS article):"""
         except ValueError:
             pass
         
-        # Try fuzzy matching - prefer longer/more specific matches
+        # Try fuzzy matching with keyword mapping
         event_type_lower = event_type.lower().replace("_", " ").replace("-", " ")
         
-        # First, try finding enum values contained in the event_type
+        # Keyword-based mapping for common variations
+        if "visit" in event_type_lower or "diplomatic" in event_type_lower:
+            return EventType.MEETING
+        elif "summit" in event_type_lower or "bilateral" in event_type_lower:
+            return EventType.SUMMIT
+        elif "conference" in event_type_lower:
+            return EventType.CONFERENCE
+        
+        # Try finding enum values contained in the event_type
         matches = []
         for et in EventType:
             et_value = et.value.replace("_", " ").replace("-", " ")
@@ -588,8 +596,11 @@ JSON OUTPUT (extract from THIS article):"""
             
             return event_data
             
+        except ValueError as e:
+            logger.error(f"Validation error creating EventData: {e}", exc_info=True)
+            return None
         except Exception as e:
-            logger.error(f"Error extracting event: {e}", exc_info=True)
+            logger.error(f"Error extracting event from '{title[:50]}...': {e}", exc_info=True)
             return None
     
     async def extract_from_article(
