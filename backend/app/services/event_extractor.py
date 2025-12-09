@@ -93,53 +93,76 @@ ARTICLE CONTENT:
         
         # Production-grade extraction instructions
         prompt += """EXTRACTION TASK:
-Extract ALL available information in JSON format. Be thorough and accurate.
+Read the article carefully and extract ONLY information that is explicitly stated. Do NOT make up or assume information.
 
-CRITICAL REQUIREMENTS:
-1. Extract location components separately (city, region/state, country)
-2. Identify perpetrator(s) for attacks/bombings (who did it)
-3. Classify perpetrator type (terrorist group, state actor, individual, etc.)
-4. Identify event sub-type for more specific classification
-5. Parse date AND time separately if mentioned
-6. Count casualties (killed, injured) if mentioned
-7. List individuals and organizations separately
-8. Assign appropriate event type
-9. Provide confidence score (0.0-1.0)
+STEP 1: Determine the MAIN event type from this article
+STEP 2: Extract ONLY facts that are clearly stated in the article
+STEP 3: Use null for ANY field where information is not explicitly mentioned
+STEP 4: Write a concise summary (3-4 sentences maximum, capturing the key points)
 
-EVENT TYPES (choose most specific):
-- bombing, explosion, shooting, attack, kidnapping, theft
-- terrorist_activity, cyber_attack, data_breach
-- protest, demonstration, civil_unrest
-- natural_disaster, accident
-- conference, meeting, summit, election
-- military_operation, political_event
-- other (if none fit)
+EVENT TYPES (choose the ONE that best matches THIS article):
+- meeting, summit, conference: Diplomatic meetings, trade talks, official visits
+- political_event, election: Political activities, campaigns, government actions
+- bombing, explosion, shooting, attack: Violent incidents (ONLY if this article is about such an incident)
+- terrorist_activity: Terror-related acts
+- protest, demonstration, civil_unrest: Public protests or unrest
+- natural_disaster, accident: Natural catastrophes or accidents
+- cyber_attack, data_breach: Cyber security incidents
+- kidnapping, theft: Crimes
+- military_operation: Military actions
+- other: If none of the above fit
 
-PERPETRATOR TYPES (choose one if perpetrator identified):
-- terrorist_group: Known terrorist organizations
-- state_actor: Government or military forces
-- criminal_organization: Organized crime groups
-- individual: Single person or small group
-- multiple_parties: Multiple distinct groups involved
-- unknown: Perpetrator not identified
-- not_applicable: No perpetrator (e.g., natural disasters)
+CRITICAL RULES - READ CAREFULLY:
+1. ONLY extract event_type that matches THIS article's main topic
+2. Do NOT extract perpetrator/casualties unless they are clearly stated in THIS article
+3. Do NOT mix information from different articles or examples
+4. If a field is not mentioned in the article, use null
+5. Summary must be 3-4 sentences maximum, concise and factual
+6. Perpetrator is ONLY for violent events where someone carried out an attack
+7. Casualties are ONLY if deaths/injuries are explicitly mentioned in THIS article
+8. Location should be where THIS event takes place
+9. Date should be when THIS event happened (not the article date)
+10. If event doesn't clearly fit a category, use "other"
 
-RESPOND WITH VALID JSON ONLY (no markdown, no explanations):
+PERPETRATOR TYPES (ONLY if this is a violent attack with identified perpetrator):
+- terrorist_group, state_actor, criminal_organization, individual, multiple_parties, unknown, not_applicable
+
+EXAMPLE - Meeting/Summit Article:
+{
+    "event_type": "meeting",
+    "event_sub_type": "bilateral summit",
+    "summary": "Russian President Putin visited India for the 23rd Russia-India Summit. He held talks with PM Modi focusing on economic cooperation and energy ties. The two leaders agreed to boost bilateral trade to $100 billion by 2030.",
+    "perpetrator": null,
+    "perpetrator_type": null,
+    "location": {
+        "city": "New Delhi",
+        "region": null,
+        "country": "India"
+    },
+    "event_date": "2025-12-05",
+    "event_time": null,
+    "individuals": ["Vladimir Putin", "Narendra Modi"],
+    "organizations": ["Kremlin", "Indian Government"],
+    "casualties": null,
+    "confidence": 0.9
+}
+
+EXAMPLE - Attack Article:
 {
     "event_type": "bombing",
     "event_sub_type": "suicide bombing",
-    "summary": "Brief 1-2 sentence summary of what happened",
+    "summary": "A suicide bomber attacked a checkpoint in Kabul. The Islamic State claimed responsibility for the attack. Five people were killed and twelve injured.",
     "perpetrator": "Islamic State",
     "perpetrator_type": "terrorist_group",
     "location": {
         "city": "Kabul",
-        "region": "Kabul Province",
+        "region": null,
         "country": "Afghanistan"
     },
     "event_date": "2023-01-02",
-    "event_time": "09:30",
-    "individuals": ["Person A", "Person B"],
-    "organizations": ["Taliban", "UN"],
+    "event_time": "morning",
+    "individuals": [],
+    "organizations": ["Taliban"],
     "casualties": {
         "killed": 5,
         "injured": 12
@@ -147,21 +170,15 @@ RESPOND WITH VALID JSON ONLY (no markdown, no explanations):
     "confidence": 0.85
 }
 
-CRITICAL - JSON FORMATTING RULES:
-- ONLY output valid JSON - NO explanatory text before or after
-- Use null (not "null") for missing values
-- Do NOT use 'or null' - just use null directly
-- Do NOT add comments (no // or /* */)
-- All string values must be in double quotes
-- Numbers should NOT be in quotes
-- event_date format: YYYY-MM-DD
-- event_time format: HH:MM or descriptive text like "morning", "evening"
-- event_sub_type: More specific classification (e.g., "suicide bombing", "mass shooting", "vehicle attack")
-- perpetrator_type: One of: terrorist_group, state_actor, criminal_organization, individual, multiple_parties, unknown, not_applicable
-- casualties: Use null if no casualties mentioned, otherwise {"killed": N, "injured": M}
-- confidence: 0.9+ if very clear, 0.7-0.9 if mostly clear, <0.7 if uncertain
+JSON FORMATTING RULES:
+- Output ONLY valid JSON - no explanations before or after
+- Use null for missing/unavailable information
+- All strings in double quotes
+- Numbers without quotes
+- event_date format: YYYY-MM-DD (null if not mentioned)
+- confidence: 0.9+ very clear, 0.7-0.9 mostly clear, 0.5-0.7 uncertain, <0.5 very uncertain
 
-JSON OUTPUT:"""
+JSON OUTPUT (extract from THIS article):"""
         
         return prompt
     
@@ -402,6 +419,32 @@ JSON OUTPUT:"""
             # Parse response
             parsed_data = self.parse_llm_response(response)
             if not parsed_data:
+                return None
+            
+            # VALIDATION: Check if extraction makes sense for this article
+            event_type_str = parsed_data.get("event_type", "").lower()
+            summary = parsed_data.get("summary", "").lower()
+            title_lower = title.lower()
+            content_lower = content[:1000].lower()  # Check first 1000 chars
+            
+            # Check if violent event type matches article content
+            # If event_type is violent but article has no violence keywords, change to "other"
+            if event_type_str in ["bombing", "explosion", "attack", "shooting", "terrorist_activity", "kidnapping"]:
+                violence_keywords = ["bomb", "explosion", "attack", "shoot", "terror", "killed", "dead", "casualt", "injur", "blast", "kidnap", "abduct"]
+                has_violence_mention = any(keyword in title_lower or keyword in content_lower for keyword in violence_keywords)
+                
+                if not has_violence_mention:
+                    logger.warning(f"⚠️ Event type '{event_type_str}' doesn't match article content. Changing to 'other' for: {title[:60]}")
+                    parsed_data["event_type"] = "other"
+                    # Clear violence-related fields
+                    parsed_data["perpetrator"] = None
+                    parsed_data["perpetrator_type"] = None
+                    parsed_data["casualties"] = None
+            
+            # Validate confidence score - reject ONLY if extremely low
+            confidence = parsed_data.get("confidence", 0.0)
+            if confidence < 0.3:
+                logger.warning(f"❌ Rejecting extraction: confidence too low ({confidence:.2f}) for: {title[:60]}")
                 return None
             
             # Extract location components

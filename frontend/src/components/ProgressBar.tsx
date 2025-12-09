@@ -62,7 +62,7 @@ export default function ProgressBar({ progress, onCancel }: ProgressBarProps) {
           </Box>
           <Box sx={{ minWidth: 80, textAlign: 'right' }}>
             <Typography variant="body2" color="text.secondary" fontWeight="bold">
-              {progress.current}/{progress.total} ({progress.percentage.toFixed(0)}%)
+              {progress.percentage.toFixed(0)}%
             </Typography>
           </Box>
         </Box>
