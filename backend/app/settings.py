@@ -88,6 +88,11 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",")]
     
     @property
+    def ollama_url(self) -> str:
+        """Alias for ollama_base_url for backward compatibility."""
+        return self.ollama_base_url
+    
+    @property
     def log_path(self) -> Path:
         """Get full log file path."""
         return Path(self.log_dir) / self.log_file

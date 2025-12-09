@@ -10,7 +10,7 @@ from loguru import logger
 import json
 import asyncio
 
-from app.config import settings
+from app.settings import settings
 from app.utils.logger import setup_logging
 from app.services.ollama_service import OllamaClient
 from app.services.config_manager import config_manager
@@ -38,16 +38,12 @@ app = FastAPI(
 )
 
 # CORS Configuration
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(',')] if settings.cors_origins else ["http://localhost:5173"]
+logger.info(f"CORS origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",      # Vite dev server (default)
-        "http://127.0.0.1:5173",      # Vite dev server (alternate)
-        "http://localhost:3000",      # Optional: if using different port
-        "http://127.0.0.1:3000",      # Optional: if using different port
-        "http://192.168.19.53:5173",  # LAN access
-        "http://192.168.19.53:8000",  # LAN backend
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -371,7 +367,10 @@ async def search_events_stream(
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",  # Disable nginx buffering
-                "X-Session-ID": session_id  # Send session ID in header for immediate access
+                "X-Session-ID": session_id,  # Send session ID in header for immediate access
+                "Access-Control-Allow-Origin": "*",  # Ensure CORS for SSE
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Expose-Headers": "X-Session-ID"
             }
         )
         
