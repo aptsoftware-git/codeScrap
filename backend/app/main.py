@@ -13,6 +13,7 @@ import asyncio
 from app.settings import settings
 from app.utils.logger import setup_logging
 from app.services.ollama_service import OllamaClient
+from app.services.llm_router import llm_router
 from app.services.config_manager import config_manager
 from app.services.event_extractor import event_extractor
 from app.services.search_service import search_service
@@ -140,6 +141,96 @@ async def ollama_status():
         }
 
 
+@app.get("/api/v1/llm/status")
+async def llm_status():
+    """
+    Get status of all LLM providers (Ollama and Claude).
+    
+    Returns:
+        Dictionary with provider status and availability
+    """
+    try:
+        status = llm_router.get_provider_status()
+        return {
+            **status,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"LLM status check failed: {e}")
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/api/v1/llm/models")
+async def llm_models():
+    """
+    List all available LLM models from all providers.
+    
+    Returns:
+        Dictionary with models by provider
+    """
+    try:
+        models = llm_router.list_available_models()
+        return {
+            "models": models,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"LLM models listing failed: {e}")
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/api/v1/llm/usage")
+async def llm_usage():
+    """
+    Get Claude API usage statistics.
+    
+    Returns:
+        Dictionary with usage stats including costs
+    """
+    try:
+        usage = llm_router.get_claude_usage()
+        return {
+            "usage": usage,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"LLM usage stats failed: {e}")
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.post("/api/v1/llm/reset-stats")
+async def llm_reset_stats():
+    """
+    Reset Claude API usage statistics.
+    
+    Returns:
+        Success message
+    """
+    try:
+        llm_router.reset_claude_stats()
+        return {
+            "status": "success",
+            "message": "Claude usage stats reset",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"LLM stats reset failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
 @app.get("/")
 async def root():
     """
@@ -155,6 +246,10 @@ async def root():
         "endpoints": {
             "health": "/api/v1/health",
             "ollama_status": "/api/v1/ollama/status",
+            "llm_status": "/api/v1/llm/status",
+            "llm_models": "/api/v1/llm/models",
+            "llm_usage": "/api/v1/llm/usage",
+            "llm_reset_stats": "/api/v1/llm/reset-stats",
             "sources": "/api/v1/sources",
             "search": "/api/v1/search",
             "export_excel": "/api/v1/export/excel",
@@ -264,7 +359,9 @@ async def search_events_stream(
     date_from: str = None,
     date_to: str = None,
     max_articles: int = 50,
-    min_relevance_score: float = 0.1
+    min_relevance_score: float = 0.1,
+    llm_provider: str = None,
+    llm_model: str = None
 ):
     """
     Execute search with real-time Server-Sent Events (SSE) streaming.
@@ -339,7 +436,9 @@ async def search_events_stream(
                     query=query,
                     session_id=session_id,
                     max_articles_to_process=max_articles,
-                    min_relevance_score=min_relevance_score
+                    min_relevance_score=min_relevance_score,
+                    llm_provider=llm_provider,
+                    llm_model=llm_model
                 ):
                     # Format as SSE
                     event_type = event.get("event_type", "message")

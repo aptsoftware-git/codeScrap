@@ -13,6 +13,7 @@ requests==2.31.0
 # NLP and LLM
 spacy==3.7.2
 ollama==0.1.6
+anthropic>=0.40.0
 
 # Excel Export
 openpyxl==3.1.2

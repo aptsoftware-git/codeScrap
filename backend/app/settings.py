@@ -30,6 +30,16 @@ class Settings(BaseSettings):
     ollama_timeout: int = 60  # Timeout per article
     ollama_total_timeout: int = 300  # 5 minutes total timeout
     
+    # Claude API
+    claude_api_key: str = ""  # Set via CLAUDE_API_KEY in .env
+    default_claude_model: str = "claude-4.5-haiku"  # Fastest and cheapest
+    claude_max_concurrent: int = 5  # Max concurrent Claude API requests
+    claude_timeout: int = 30  # Claude API timeout in seconds
+    
+    # LLM Provider Selection
+    default_llm_provider: str = "ollama"  # "ollama" or "claude"
+    enable_llm_fallback: bool = True  # Fallback to alternate provider on failure
+    
     # Scraping Limits (Global defaults - can be overridden per source)
     max_search_results: int = 10  # Maximum URL results to extract from search page
     max_articles_to_process: int = 5  # Maximum articles to scrape and process with LLM

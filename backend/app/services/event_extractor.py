@@ -17,7 +17,7 @@ from app.models import (
     ExtractedEntities,
     ArticleContent
 )
-from app.services.ollama_service import OllamaClient
+from app.services.llm_router import llm_router
 from app.services.entity_extractor import entity_extractor
 from app.config import settings
 from app.utils.logger import logger
@@ -36,15 +36,7 @@ class EventExtractor:
     
     def __init__(self):
         """Initialize the event extractor."""
-        try:
-            self.ollama = OllamaClient(
-                base_url=settings.ollama_url,
-                default_model=settings.ollama_model
-            )
-            logger.info("EventExtractor initialized with Ollama client")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Ollama client: {e}")
-            self.ollama = None
+        logger.info("EventExtractor initialized with LLM router")
     
     def create_extraction_prompt(
         self,
@@ -383,8 +375,10 @@ JSON OUTPUT (extract from THIS article):"""
         url: Optional[str] = None,
         source_name: Optional[str] = None,
         article_published_date: Optional[datetime] = None,
-        entities: Optional[ExtractedEntities] = None
-    ) -> Optional[EventData]:
+        entities: Optional[ExtractedEntities] = None,
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None
+    ) -> tuple[Optional[EventData], Optional[Dict]]:
         """
         Extract comprehensive event data from an article.
         
@@ -395,9 +389,11 @@ JSON OUTPUT (extract from THIS article):"""
             source_name: Optional source name (e.g., "BBC News")
             article_published_date: Optional article publication date
             entities: Optional pre-extracted entities
+            llm_provider: Optional LLM provider ("ollama" or "claude")
+            llm_model: Optional model name
             
         Returns:
-            EventData object or None if extraction fails
+            Tuple of (EventData object or None, usage metadata dict)
         """
         try:
             logger.info(f"Extracting event from article: {title[:50]}...")
@@ -410,24 +406,32 @@ JSON OUTPUT (extract from THIS article):"""
             # Create production-grade prompt
             prompt = self.create_extraction_prompt(title, content, entities)
             
-            # Get LLM response asynchronously
-            response = await self.ollama.generate_async(
+            # Build system prompt for Claude caching (if using Claude)
+            system_prompt = """You are an expert event extraction AI. Extract event details ONLY from the provided article. 
+Be precise and conservative - only extract information that is clearly stated in the article.
+Extract event type, location, date, participants, organizations, and provide a concise 3-4 sentence summary.
+Return ONLY valid JSON matching the schema provided."""
+            
+            # Get LLM response via router
+            response, metadata = await llm_router.generate(
                 prompt=prompt,
-                model=None,  # Use default model
-                max_tokens=500,  # Increased for comprehensive extraction
-                temperature=0.2  # Low for consistent, accurate extraction
+                provider=llm_provider,
+                model=llm_model,
+                max_tokens=500,
+                temperature=0.2,
+                system_prompt=system_prompt
             )
             
             if not response or not response.strip():
                 logger.error("Empty response from LLM")
-                return None
+                return None, metadata
             
             logger.debug(f"LLM response: {response[:300]}...")
             
             # Parse response
             parsed_data = self.parse_llm_response(response)
             if not parsed_data:
-                return None
+                return None, metadata
             
             # VALIDATION: Check if extraction makes sense for this article
             event_type_str = parsed_data.get("event_type", "").lower()
@@ -453,7 +457,7 @@ JSON OUTPUT (extract from THIS article):"""
             confidence = parsed_data.get("confidence", 0.0)
             if confidence < 0.3:
                 logger.warning(f"❌ Rejecting extraction: confidence too low ({confidence:.2f}) for: {title[:60]}")
-                return None
+                return None, metadata
             
             # Extract location components
             location_data = parsed_data.get("location", {})
@@ -591,30 +595,35 @@ JSON OUTPUT (extract from THIS article):"""
                 f"✅ Extracted event: {event_data.event_type.value} | "
                 f"{event_data.title[:40]}... | "
                 f"Location: {event_data.location} | "
-                f"Confidence: {event_data.confidence:.2f}"
+                f"Confidence: {event_data.confidence:.2f} | "
+                f"Provider: {metadata.get('provider', 'unknown')}"
             )
             
-            return event_data
+            return event_data, metadata
             
         except ValueError as e:
             logger.error(f"Validation error creating EventData: {e}", exc_info=True)
-            return None
+            return None, {"error": str(e)}
         except Exception as e:
             logger.error(f"Error extracting event from '{title[:50]}...': {e}", exc_info=True)
-            return None
+            return None, {"error": str(e)}
     
     async def extract_from_article(
         self,
-        article: ArticleContent
-    ) -> Optional[EventData]:
+        article: ArticleContent,
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None
+    ) -> tuple[Optional[EventData], Optional[Dict]]:
         """
         Extract event data from an ArticleContent object.
         
         Args:
             article: ArticleContent object with title, content, url, etc.
+            llm_provider: Optional LLM provider
+            llm_model: Optional model name
             
         Returns:
-            EventData object or None if extraction fails
+            Tuple of (EventData object or None, usage metadata)
         """
         # Extract entities if available
         entities = None
@@ -630,43 +639,59 @@ JSON OUTPUT (extract from THIS article):"""
             url=article.url,
             source_name=article.source_name,
             article_published_date=article.published_date,
-            entities=entities
+            entities=entities,
+            llm_provider=llm_provider,
+            llm_model=llm_model
         )
     
     async def extract_batch(
         self,
-        articles: List[ArticleContent]
-    ) -> List[EventData]:
+        articles: List[ArticleContent],
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None
+    ) -> tuple[List[EventData], List[Dict]]:
         """
         Extract events from multiple articles.
         
         Args:
             articles: List of ArticleContent objects
+            llm_provider: Optional LLM provider
+            llm_model: Optional model name
             
         Returns:
-            List of EventData objects (successful extractions only)
+            Tuple of (List of EventData objects, List of usage metadata)
         """
         logger.info(f"Extracting events from {len(articles)} articles...")
         
         events = []
+        metadata_list = []
         for i, article in enumerate(articles, 1):
             logger.debug(f"Processing article {i}/{len(articles)}")
             
-            event = await self.extract_from_article(article)
+            event, metadata = await self.extract_from_article(
+                article,
+                llm_provider=llm_provider,
+                llm_model=llm_model
+            )
             if event:
                 events.append(event)
+                metadata_list.append(metadata)
         
         logger.info(f"✅ Successfully extracted {len(events)}/{len(articles)} events")
-        return events
+        return events, metadata_list
     
     def is_available(self) -> bool:
         """
         Check if the event extractor is available.
         
         Returns:
-            True if Ollama service is available
+            True if any LLM service is available
         """
-        return self.ollama is not None
+        status = llm_router.get_provider_status()
+        return any(
+            provider_info.get("available", False)
+            for provider_info in status.get("providers", {}).values()
+        )
 
 
 # Global instance

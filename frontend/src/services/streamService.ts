@@ -1,4 +1,5 @@
 import { SearchQuery, StreamCallbacks, ProgressUpdate, EventData } from '../types/events';
+import { getLLMConfig } from '../components/LLMConfig';
 
 /**
  * Service for handling Server-Sent Events (SSE) streaming from backend
@@ -23,6 +24,9 @@ export class StreamService {
     // Store callbacks for later use (e.g., in cancel method)
     this.currentCallbacks = callbacks;
 
+    // Get LLM configuration
+    const llmConfig = getLLMConfig();
+
     // Build query parameters
     const params = new URLSearchParams();
     params.append('phrase', query.phrase);
@@ -30,6 +34,10 @@ export class StreamService {
     if (query.event_type) params.append('event_type', query.event_type);
     if (query.date_from) params.append('date_from', query.date_from);
     if (query.date_to) params.append('date_to', query.date_to);
+    
+    // Add LLM configuration
+    params.append('llm_provider', llmConfig.provider);
+    params.append('llm_model', llmConfig.model);
 
     const url = `${this.baseURL}/api/v1/search/stream?${params.toString()}`;
     console.log('[STREAM] Opening SSE connection:', url);

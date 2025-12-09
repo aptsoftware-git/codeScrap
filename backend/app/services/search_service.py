@@ -601,7 +601,9 @@ class SearchService:
         query: SearchQuery,
         session_id: str,
         max_articles_to_process: int = 50,
-        min_relevance_score: float = 0.1
+        min_relevance_score: float = 0.1,
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None
     ):
         """
         Execute search pipeline with real-time streaming updates.
@@ -767,8 +769,12 @@ class SearchService:
                         return
                     
                     logger.info(f"[LLM] Starting extraction for article {idx}/{total_articles} - Session {session_id}")
-                    event = await event_extractor.extract_from_article(article)
-                    logger.info(f"[LLM] Completed extraction for article {idx}/{total_articles} - Session {session_id}")
+                    event, metadata = await event_extractor.extract_from_article(
+                        article,
+                        llm_provider=llm_provider,
+                        llm_model=llm_model
+                    )
+                    logger.info(f"[LLM] Completed extraction for article {idx}/{total_articles} - Session {session_id} - Provider: {metadata.get('provider', 'unknown')}")
                     
                     # Check cancellation AFTER extraction completes (in case it was cancelled during LLM call)
                     logger.info(f"[CANCEL-CHECK] After LLM extraction article {idx} - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id)}")

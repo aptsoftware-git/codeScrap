@@ -195,3 +195,8 @@ class OllamaClient:
                 "status": "error",
                 "error": str(e)
             }
+
+
+# Global instance (initialized in main.py on startup, or on-demand)
+ollama_client: Optional[OllamaClient] = None
+
