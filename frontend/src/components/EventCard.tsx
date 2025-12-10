@@ -23,6 +23,7 @@ import {
   Close as CloseIcon,
   Article as ArticleIcon,
   Info as InfoIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { EventData } from '../types/events';
 import { format, parseISO } from 'date-fns';
@@ -223,7 +224,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, selected = false, onToggle
                 variant="caption"
                 underline="hover"
                 onClick={(e) => e.stopPropagation()}
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
+                <LinkIcon fontSize="small" />
                 Source
               </Link>
             )}

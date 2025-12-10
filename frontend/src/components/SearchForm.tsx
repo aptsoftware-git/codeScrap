@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { EventType, SearchQuery, ProgressUpdate, EventData } from '../types/events';
-import LLMConfigPanel from './LLMConfig';
 
 interface SearchFormProps {
   onSearchStart?: () => void;
@@ -221,9 +220,6 @@ const SearchForm: React.FC<SearchFormProps> = ({
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
       <Box sx={{ width: '100%', maxWidth: { xs: '100%', md: '66.666%' } }}>
-        {/* LLM Configuration Panel */}
-        <LLMConfigPanel />
-        
         {/* Search Form */}
         <Paper elevation={3} sx={{ p: 3, mb: 3, width: '100%' }}>
           <Typography variant="h5" gutterBottom>

@@ -20,6 +20,7 @@ class EventType(str, Enum):
     SHOOTING = "shooting"
     THEFT = "theft"
     KIDNAPPING = "kidnapping"
+    MILITARY_OPERATION = "military_operation"
     
     # Cyber Events
     CYBER_ATTACK = "cyber_attack"
@@ -38,6 +39,9 @@ class EventType(str, Enum):
     # Political & Military
     ELECTION = "election"
     POLITICAL_EVENT = "political_event"
+    
+    # Other/Unknown
+    OTHER = "other"
 
 
 class PerpetratorType(str, Enum):

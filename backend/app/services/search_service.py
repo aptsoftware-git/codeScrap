@@ -423,6 +423,7 @@ class SearchService:
             List of scraped articles
         """
         all_articles = []
+        seen_urls = set()  # Track URLs to avoid duplicates
         
         try:
             logger.info(f"[SCRAPING] Starting scraping from {len(sources)} sources for query: '{query}' - Session: {session_id}")
@@ -448,8 +449,23 @@ class SearchService:
                         max_articles_to_process=None,  # Use source config or global default
                         cancellation_check=lambda: self.session_store.is_cancelled(session_id) if session_id else False
                     )
-                    all_articles.extend(articles)
-                    logger.info(f"[SCRAPING] Got {len(articles)} articles from {source.name} - Session {session_id}")
+                    
+                    # Filter out duplicate URLs
+                    unique_articles = []
+                    duplicate_count = 0
+                    for article in articles:
+                        if article.url not in seen_urls:
+                            seen_urls.add(article.url)
+                            unique_articles.append(article)
+                        else:
+                            duplicate_count += 1
+                            logger.debug(f"Skipping duplicate URL from {source.name}: {article.url}")
+                    
+                    if duplicate_count > 0:
+                        logger.info(f"[DUPLICATE-FILTER] Filtered {duplicate_count} duplicate URL(s) from {source.name}")
+                    
+                    all_articles.extend(unique_articles)
+                    logger.info(f"[SCRAPING] Got {len(unique_articles)} unique articles from {source.name} ({duplicate_count} duplicates filtered) - Session {session_id}")
                     
                     # Check for cancellation after each source
                     logger.info(f"[CANCEL-CHECK] After source {idx}/{len(sources)} ({source.name}) - Session {session_id} cancelled: {self.session_store.is_cancelled(session_id) if session_id else False}")
@@ -461,7 +477,7 @@ class SearchService:
                     logger.error(f"Error scraping {source.name}: {e}")
                     continue
             
-            logger.info(f"[SCRAPING] Total articles scraped: {len(all_articles)} - Session {session_id}")
+            logger.info(f"[SCRAPING] Total unique articles scraped: {len(all_articles)} (from {len(seen_urls)} unique URLs) - Session {session_id}")
             return all_articles
             
         except Exception as e:

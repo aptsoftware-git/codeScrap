@@ -430,7 +430,8 @@ Return ONLY valid JSON matching the schema provided."""
             
             # Parse response
             parsed_data = self.parse_llm_response(response)
-            if not parsed_data:
+            if not parsed_data or not isinstance(parsed_data, dict):
+                logger.error(f"Invalid parsed data (type: {type(parsed_data)}): {parsed_data}")
                 return None, metadata
             
             # VALIDATION: Check if extraction makes sense for this article
@@ -461,10 +462,20 @@ Return ONLY valid JSON matching the schema provided."""
             
             # Extract location components
             location_data = parsed_data.get("location", {})
+            
+            # Handle country - convert list to string if needed (for cross-border events)
+            country_value = location_data.get("country")
+            if isinstance(country_value, list):
+                # Join multiple countries with "/" for cross-border events (e.g., "India/Pakistan")
+                country_str = "/".join(country_value) if country_value else None
+                logger.debug(f"Converted country list to string: {country_value} -> {country_str}")
+            else:
+                country_str = country_value
+            
             location = Location(
                 city=location_data.get("city"),
                 region=location_data.get("region") or location_data.get("state"),
-                country=location_data.get("country"),
+                country=country_str,
                 coordinates=None
             )
             

@@ -3,8 +3,10 @@ import { Container, CssBaseline, ThemeProvider, createTheme, AppBar, Toolbar, Ty
 import SearchForm from './components/SearchForm';
 import EventList from './components/EventList';
 import ProgressBar from './components/ProgressBar';
+import LLMConfigDropdown from './components/LLMConfigDropdown';
 import { EventData, ProgressUpdate } from './types/events';
 import { streamService } from './services/streamService';
+import logoImage from './assets/logo.png';
 import './App.css';
 
 const theme = createTheme({
@@ -88,9 +90,16 @@ function App() {
         {/* App Bar */}
         <AppBar position="static">
           <Toolbar>
+            <Box
+              component="img"
+              src={logoImage}
+              alt="Logo"
+              sx={{ height: 52, mr: 2 }}
+            />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Event Scraper & Analyzer
             </Typography>
+            <LLMConfigDropdown />
           </Toolbar>
         </AppBar>
 
@@ -128,9 +137,9 @@ function App() {
         </Box>
 
         {/* Footer */}
-        <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: (theme) => theme.palette.grey[200] }}>
+        <Box component="footer" sx={{ py: 2, px: 1.5, mt: 'auto', backgroundColor: (theme) => theme.palette.grey[200] }}>
           <Container maxWidth="xl">
-            <Typography variant="body2" color="text.secondary" align="center">
+            <Typography variant="caption" color="text.secondary" align="center" display="block">
               Developed by Apt Software Avenues Pvt. Ltd. (a Defender Framework tool)
             </Typography>
           </Container>

@@ -15,8 +15,8 @@ sources:
     search_url_template: "https://html.duckduckgo.com/html/?q={query}"
     rate_limit: 2.0
     # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
-    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+    max_search_results: 20       # Extract up to 5 URLs from search results
+    max_articles_to_process: 20  # Scrape and process up to 5 articles with LLM
     selectors:
       # DuckDuckGo HTML version has simple structure
       article_links: ".result__url"
@@ -36,7 +36,7 @@ sources:
     search_url_template: "https://www.satp.org/terrorist-activity/southasia?search={query}"
     rate_limit: 3.0
     # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_search_results: 5      # Extract up to 10 URLs from search results
     max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a[href*='terrorist-activity'], a[href*='terrorism-assessment'], a[href*='south-asia-intelligence-review']"
@@ -49,14 +49,14 @@ sources:
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
       Accept-Language: "en-US,en;q=0.9"
 
-  # BBC News (DISABLED)
+  # BBC News (DISABLED - Selector issues, DuckDuckGo indexes BBC anyway)
   - name: "BBC News"
     base_url: "https://www.bbc.com"
     enabled: false
     search_url_template: "https://www.bbc.com/search?q={query}"
     rate_limit: 2.0
     # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_search_results: 5       # Extract up to 5 URLs from search results
     max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a[data-testid='internal-link']"
@@ -69,52 +69,53 @@ sources:
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
       Accept-Language: "en-US,en;q=0.9"
 
-  # Reuters (DISABLED)
-  - name: "Reuters"
-    base_url: "https://www.reuters.com"
-    enabled: false
-    search_url_template: "https://www.reuters.com/site-search/?query={query}"
-    rate_limit: 2.0
-    # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
-    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
-    selectors:
-      article_links: "a.media-story-card__link"
-      title: "h1[data-testid='Heading']"
-      content: "div[data-testid='ArticleBody']"
-      date: "time"
-      author: "a[data-testid='Author']"
-    headers:
-      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  # Reuters (DISABLED - Requires JavaScript/CAPTCHA)
+  # Note: Reuters has bot detection that requires JavaScript. Automated access blocked.
+  # - name: "Reuters"
+  #   base_url: "https://www.reuters.com"
+  #   enabled: false
+  #   search_url_template: "https://www.reuters.com/site-search/?query={query}"
+  #   rate_limit: 2.0
+  #   # Scraping limits (optional - if not set, uses global defaults from .env)
+  #   max_search_results: 5      # Extract up to 5 URLs from search results
+  #   max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+  #   selectors:
+  #     article_links: "a.media-story-card__link"
+  #     title: "h1[data-testid='Heading']"
+  #     content: "div[data-testid='ArticleBody']"
+  #     date: "time"
+  #     author: "a[data-testid='Author']"
+  #   headers:
+  #     User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  #     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-  # The Guardian (DISABLED)
+  # The Guardian (DISABLED - Search URL returns 404, DuckDuckGo indexes Guardian)
   - name: "The Guardian"
     base_url: "https://www.theguardian.com"
     enabled: false
     search_url_template: "https://www.theguardian.com/search?q={query}"
-    rate_limit: 1.5
-    # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
-    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+    rate_limit: 2.0
+    # Scraping limits
+    max_search_results: 5
+    max_articles_to_process: 5
     selectors:
-      article_links: "a.u-faux-block-link__overlay"
-      title: "h1.content__headline"
-      content: "div.content__article-body"
-      date: "time.content__dateline-wpd"
+      article_links: "a[data-link-name='article']"
+      title: "h1"
+      content: "article .article-body-commercial-selector, .content__article-body"
+      date: "time"
       author: "a[rel='author']"
     headers:
       User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-  # Al Jazeera (DISABLED)
+  # Al Jazeera (DISABLED - Selector issues, DuckDuckGo indexes Al Jazeera)
   - name: "Al Jazeera"
     base_url: "https://www.aljazeera.com"
     enabled: false
     search_url_template: "https://www.aljazeera.com/search/{query}"
     rate_limit: 2.5
     # Scraping limits (optional - if not set, uses global defaults from .env)
-    max_search_results: 10      # Extract up to 10 URLs from search results
+    max_search_results: 5       # Extract up to 5 URLs from search results
     max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
     selectors:
       article_links: "a.u-clickable-card__link"
@@ -141,6 +142,180 @@ sources:
       content: "div._s30J"
       date: "span.time_cptn"
       author: "span.auth_nm"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # Global Terrorism Database (GTD) (DISABLED - SSL Certificate Verification Issues)
+  # Note: University of Maryland START website has SSL certificate verification problems
+  # - name: "GTD"
+  #   base_url: "https://www.start.umd.edu"
+  #   enabled: false
+  #   search_url_template: "https://www.start.umd.edu/gtd/search/Results.aspx?search={query}"
+  #   rate_limit: 3.0
+  #   # Scraping limits
+  #   max_search_results: 5       # Extract up to 5 URLs from search results
+  #   max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+  #   selectors:
+  #     article_links: "a[href*='IncidentID'], a.incident-link, table a"
+  #     title: "h1, h2, .incident-title, .page-title"
+  #     content: "table, .incident-details, .content, article, div.details, p"
+  #     date: "td, .date, span.date, [class*='date']"
+  #     author: ".source, .attribution"
+  #   headers:
+  #     User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  #     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  #     Accept-Language: "en-US,en;q=0.9"
+
+  # Twitter/X (DISABLED - Requires authentication/returns 403)
+  # Note: Twitter blocks unauthenticated scrapers. Would require Twitter API or browser automation.
+  - name: "Twitter"
+    base_url: "https://twitter.com"
+    enabled: false
+    search_url_template: "https://twitter.com/search?q={query}&f=live"
+    rate_limit: 3.0
+    # Scraping limits
+    max_search_results: 5       # Extract up to 5 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+    selectors:
+      article_links: "a[href*='/status/']"
+      title: "div[data-testid='tweetText'], div.tweet-text"
+      content: "div[data-testid='tweetText'], article"
+      date: "time, a time"
+      author: "div[data-testid='User-Name'], span.username"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # Facebook (DISABLED - Requires authentication)
+  # Note: Facebook requires login for search. Would require Facebook Graph API or browser automation.
+  - name: "Facebook"
+    base_url: "https://www.facebook.com"
+    enabled: false
+    search_url_template: "https://www.facebook.com/search/posts/?q={query}"
+    rate_limit: 3.0
+    # Scraping limits
+    max_search_results: 5       # Extract up to 5 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+    selectors:
+      article_links: "a[href*='/posts/'], a[href*='/permalink/']"
+      title: "div[data-ad-preview='message'], span.d2edcug0"
+      content: "div[data-ad-preview='message'], div.ecm0bbzt"
+      date: "abbr, span.timestampContent, a abbr"
+      author: "strong a, h3 a"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # ACLED - Armed Conflict Location & Event Data (DISABLED - Selector issues)
+  # Real-time data on political violence and protest events worldwide
+  - name: "ACLED"
+    base_url: "https://acleddata.com"
+    enabled: false
+    search_url_template: "https://acleddata.com/?s={query}"
+    rate_limit: 3.0
+    # Scraping limits
+    max_search_results: 5       # Extract up to 5 URLs from search results
+    max_articles_to_process: 5  # Scrape and process up to 5 articles with LLM
+    selectors:
+      article_links: "a[href*='/data-export/'], a.post-link, article a, h2 a, h3 a"
+      title: "h1.entry-title, h1, h2.post-title, .article-title"
+      content: ".entry-content, article, .post-content, .content, main p, p"
+      date: "time, .published, .date, span.date, [class*='date']"
+      author: ".author, .byline, [rel='author'], span.author"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.9"
+
+  # India Today (DISABLED - Selector issues, DuckDuckGo indexes India Today)
+  - name: "India Today"
+    base_url: "https://www.indiatoday.in"
+    enabled: false
+    search_url_template: "https://www.indiatoday.in/search?searchtext={query}"
+    rate_limit: 2.0
+    max_search_results: 5
+    max_articles_to_process: 5
+    selectors:
+      article_links: "a.story-card, a[href*='/story/']"
+      title: "h1, .story-kicker"
+      content: ".Story_description, .description, p"
+      date: "time, .posted-on, .story-date"
+      author: ".author-name, .byline"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # Dawn Pakistan (DISABLED - 403 Forbidden, bot protection)
+  - name: "Dawn"
+    base_url: "https://www.dawn.com"
+    enabled: false
+    search_url_template: "https://www.dawn.com/search?cx=partner-pub-8258178831251847%3A5337004877&cof=FORID%3A10&ie=UTF-8&q={query}"
+    rate_limit: 2.0
+    max_search_results: 5
+    max_articles_to_process: 5
+    selectors:
+      article_links: "article h2 a, .story__link"
+      title: "h1, .story__title"
+      content: ".story__content, article p"
+      date: "time, .story__time"
+      author: ".story__byline, .author"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # AP News (DISABLED - Selector too broad, extracts wrong links)
+  - name: "AP News"
+    base_url: "https://apnews.com"
+    enabled: false
+    search_url_template: "https://apnews.com/search?q={query}"
+    rate_limit: 2.0
+    max_search_results: 5
+    max_articles_to_process: 5
+    selectors:
+      article_links: "a.Link"
+      title: "h1, .Page-headline"
+      content: ".Article, .RichTextStoryBody, p"
+      date: "time, .Timestamp"
+      author: ".Component-bylines, .byline"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # CBS News (DISABLED - Selector issues, DuckDuckGo indexes CBS)
+  - name: "CBS News"
+    base_url: "https://www.cbsnews.com"
+    enabled: false
+    search_url_template: "https://www.cbsnews.com/search/?q={query}"
+    rate_limit: 2.0
+    max_search_results: 5
+    max_articles_to_process: 5
+    selectors:
+      article_links: "a.item__link"
+      title: "h1.content__title"
+      content: "section.content__body, .article__content"
+      date: "time.content__meta-date"
+      author: ".content__meta-author"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+  # NPR (DISABLED - Selector issues, DuckDuckGo indexes NPR)
+  - name: "NPR"
+    base_url: "https://www.npr.org"
+    enabled: false
+    search_url_template: "https://www.npr.org/search?query={query}"
+    rate_limit: 2.0
+    max_search_results: 5
+    max_articles_to_process: 5
+    selectors:
+      article_links: "h2.title a, .item-info-wrap a"
+      title: "h1"
+      content: "#storytext, .storytext"
+      date: "time"
+      author: ".byline__name"
     headers:
       User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"

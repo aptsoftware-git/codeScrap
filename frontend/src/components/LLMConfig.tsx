@@ -203,7 +203,7 @@ const LLMConfigPanel: React.FC = () => {
             LLM Configuration
           </Typography>
           <Chip
-            label={config.provider === 'claude' ? 'Cloud (Claude)' : 'Local (Ollama)'}
+            label={config.provider === 'claude' ? 'Cloude (Claude)' : 'Local (Ollama)'}
             size="small"
             color={config.provider === 'claude' ? 'primary' : 'default'}
           />
