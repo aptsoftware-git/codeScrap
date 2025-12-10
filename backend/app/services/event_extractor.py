@@ -106,12 +106,12 @@ EVENT TYPES (choose the ONE that best matches THIS article):
 
 CRITICAL RULES - READ CAREFULLY:
 1. ONLY extract event_type that matches THIS article's main topic
-2. Do NOT extract perpetrator/casualties unless they are clearly stated in THIS article
+2. Extract perpetrator/casualties if mentioned OR claimed in THIS article (including claims by groups)
 3. Do NOT mix information from different articles or examples
 4. If a field is not mentioned in the article, use null
 5. Summary must be 3-4 sentences maximum, concise and factual
-6. Perpetrator is ONLY for violent events where someone carried out an attack
-7. Casualties are ONLY if deaths/injuries are explicitly mentioned in THIS article
+6. Perpetrator is for violent events where someone carried out or claimed an attack
+7. Casualties: Extract if deaths/injuries are mentioned, claimed, or reported in THIS article
 8. Location should be where THIS event takes place
 9. Date should be when THIS event happened (not the article date)
 10. If event doesn't clearly fit a category, use "other"
@@ -143,7 +143,7 @@ EXAMPLE - Attack Article:
 {
     "event_type": "bombing",
     "event_sub_type": "suicide bombing",
-    "summary": "A suicide bomber attacked a checkpoint in Kabul. The Islamic State claimed responsibility for the attack. Five people were killed and twelve injured.",
+    "summary": "A suicide bomber attacked a checkpoint in Kabul. The Islamic State claimed responsibility for the attack, claiming to have killed 20 people and injured 30. Taliban authorities disputed the casualty figures.",
     "perpetrator": "Islamic State",
     "perpetrator_type": "terrorist_group",
     "location": {
@@ -151,13 +151,13 @@ EXAMPLE - Attack Article:
         "region": null,
         "country": "Afghanistan"
     },
-    "event_date": "2023-01-02",
-    "event_time": "morning",
+    "event_date": "2023-01-01",
+    "event_time": null,
     "individuals": [],
-    "organizations": ["Taliban"],
+    "organizations": ["Islamic State", "Taliban"],
     "casualties": {
-        "killed": 5,
-        "injured": 12
+        "killed": 20,
+        "injured": 30
     },
     "confidence": 0.85
 }
@@ -509,10 +509,17 @@ Return ONLY valid JSON matching the schema provided."""
             casualties_data = parsed_data.get("casualties")
             casualties = None
             if casualties_data and isinstance(casualties_data, dict):
-                killed = casualties_data.get("killed", 0)
-                injured = casualties_data.get("injured", 0)
-                if killed or injured:
-                    casualties = {"killed": killed, "injured": injured}
+                # Ensure values are integers, not None
+                killed = casualties_data.get("killed") or 0
+                injured = casualties_data.get("injured") or 0
+                # Convert to int if they're strings
+                if isinstance(killed, str):
+                    killed = int(killed) if killed.isdigit() else 0
+                if isinstance(injured, str):
+                    injured = int(injured) if injured.isdigit() else 0
+                # Only create casualties dict if we have actual numbers
+                if killed > 0 or injured > 0:
+                    casualties = {"killed": int(killed), "injured": int(injured)}
             
             # Extract perpetrator
             perpetrator = parsed_data.get("perpetrator")

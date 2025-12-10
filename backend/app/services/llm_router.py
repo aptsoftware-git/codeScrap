@@ -6,7 +6,7 @@ Handles provider selection, fallback logic, and unified interface.
 from typing import Optional, Dict, Any, Tuple
 from loguru import logger
 
-from app.services.ollama_service import ollama_client
+from app.services.ollama_service import OllamaClient
 from app.services.claude_service import claude_service
 from app.settings import settings
 
@@ -27,13 +27,33 @@ class LLMRouter:
     def __init__(self):
         """Initialize LLM router."""
         self.default_provider = settings.default_llm_provider or "ollama"
-        self.default_claude_model = settings.default_claude_model or "claude-4.5-haiku"
+        self.default_claude_model = settings.default_claude_model or "claude-3-5-haiku-20241022"
         self.enable_fallback = settings.enable_llm_fallback if hasattr(settings, 'enable_llm_fallback') else True
+        
+        # Initialize Ollama client on-demand
+        self._ollama_client = None
         
         logger.info(
             f"LLMRouter initialized: default={self.default_provider}, "
             f"claude_model={self.default_claude_model}, fallback={self.enable_fallback}"
         )
+    
+    @property
+    def ollama_client(self) -> Optional[OllamaClient]:
+        """Get or create Ollama client."""
+        if self._ollama_client is None:
+            try:
+                self._ollama_client = OllamaClient(
+                    base_url=settings.ollama_base_url,
+                    default_model=settings.ollama_model
+                )
+                if not self._ollama_client.test_connection():
+                    logger.warning("Ollama client created but connection test failed")
+                    self._ollama_client = None
+            except Exception as e:
+                logger.error(f"Failed to create Ollama client: {e}")
+                self._ollama_client = None
+        return self._ollama_client
     
     async def generate(
         self,
@@ -190,12 +210,13 @@ class LLMRouter:
         temperature: float
     ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
         """Generate using Ollama."""
-        if not ollama_client or not ollama_client.test_connection():
+        client = self.ollama_client
+        if not client:
             logger.warning("Ollama service not available")
             return None, None
         
         # Ollama uses num_predict instead of max_tokens
-        response = await ollama_client.generate_async(
+        response = await client.generate_async(
             prompt=prompt,
             model=model,  # None uses default
             max_tokens=max_tokens,
@@ -208,7 +229,7 @@ class LLMRouter:
         # Build metadata (Ollama doesn't provide detailed usage stats)
         metadata = {
             "provider": "ollama",
-            "model": model or ollama_client.default_model,
+            "model": model or client.default_model,
             "usage": {
                 "estimated_tokens": len(response.split())  # Rough estimate
             }
@@ -231,15 +252,18 @@ class LLMRouter:
         
         # Ollama status
         ollama_available = False
-        if ollama_client:
+        ollama_model = None
+        client = self.ollama_client
+        if client:
             try:
-                ollama_available = ollama_client.test_connection()
+                ollama_available = client.test_connection()
+                ollama_model = client.default_model
             except:
                 pass
         
         status["providers"]["ollama"] = {
             "available": ollama_available,
-            "model": ollama_client.default_model if ollama_client else None
+            "model": ollama_model
         }
         
         # Claude status
@@ -268,13 +292,16 @@ class LLMRouter:
         Returns:
             Dictionary with models by provider
         """
+        # Get Ollama default model from settings
+        ollama_default = settings.ollama_model
+        
         models = {
             "ollama": {
-                "default": ollama_client.default_model if ollama_client else None,
-                "models": [ollama_client.default_model] if ollama_client else []
+                "default": ollama_default,
+                "models": [{"id": ollama_default, "name": ollama_default}]
             },
             "claude": {
-                "default": "claude-4.5-haiku",
+                "default": "claude-3-5-haiku-20241022",
                 "models": claude_service.list_models()
             }
         }

@@ -5,7 +5,7 @@ Production-grade implementation for Anthropic Claude integration.
 
 import asyncio
 import json
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime
 from loguru import logger
 import anthropic
@@ -20,30 +20,35 @@ class ClaudeUsageStats:
     
     # Pricing per 1M tokens (as of Dec 2024)
     PRICING = {
-        "claude-4.5-haiku-20250514": {
-            "input": 0.40,
-            "input_cached": 0.04,  # 90% discount
-            "output": 1.60
-        },
         "claude-3-5-haiku-20241022": {
-            "input": 0.25,
-            "input_cached": 0.025,  # 90% discount
-            "output": 1.25
+            "input": 0.80,
+            "input_cached": 0.08,
+            "output": 4.00
         },
-        "claude-4.5-sonnet-20250514": {
-            "input": 3.00,
-            "input_cached": 0.30,  # 90% discount
-            "output": 15.00
+        "claude-3-haiku-20240307": {
+            "input": 0.25,
+            "input_cached": 0.025,
+            "output": 1.25
         },
         "claude-3-5-sonnet-20241022": {
             "input": 3.00,
-            "input_cached": 0.30,  # 90% discount
+            "input_cached": 0.30,
             "output": 15.00
         },
-        "claude-opus-4-20250514": {
+        "claude-3-5-sonnet-20240620": {
+            "input": 3.00,
+            "input_cached": 0.30,
+            "output": 15.00
+        },
+        "claude-3-opus-20240229": {
             "input": 15.00,
-            "input_cached": 1.50,  # 90% discount
+            "input_cached": 1.50,
             "output": 75.00
+        },
+        "claude-3-sonnet-20240229": {
+            "input": 3.00,
+            "input_cached": 0.30,
+            "output": 15.00
         }
     }
     
@@ -66,7 +71,7 @@ class ClaudeUsageStats:
         Returns:
             Dictionary with cost breakdown
         """
-        pricing = self.PRICING.get(model, self.PRICING["claude-4.5-haiku-20250514"])
+        pricing = self.PRICING.get(model, self.PRICING["claude-3-5-haiku-20241022"])
         
         # Extract tokens
         input_tokens = usage.input_tokens or 0
@@ -100,12 +105,20 @@ class ClaudeUsageStats:
     
     def get_summary(self) -> Dict[str, Any]:
         """Get usage summary statistics."""
+        # Calculate cache savings (90% discount on cached tokens)
+        # What we paid for cached tokens
+        cached_cost = self.total_cached_tokens * 0.00000025  # Average cached rate
+        # What we would have paid without caching
+        full_cost = self.total_cached_tokens * 0.0000025  # Average full rate
+        cache_savings = full_cost - cached_cost
+        
         return {
             "total_requests": self.request_count,
             "total_input_tokens": self.total_input_tokens,
             "total_cached_tokens": self.total_cached_tokens,
             "total_output_tokens": self.total_output_tokens,
             "total_cost": round(self.total_cost, 4),
+            "cache_savings": round(cache_savings, 4),
             "average_cost_per_request": round(self.total_cost / self.request_count, 6) if self.request_count > 0 else 0,
             "cache_hit_rate": round((self.total_cached_tokens / (self.total_input_tokens + self.total_cached_tokens)) * 100, 1) if (self.total_input_tokens + self.total_cached_tokens) > 0 else 0,
             "since": self.last_reset.isoformat()
@@ -126,19 +139,27 @@ class ClaudeService:
     - Async operation with queue management
     """
     
-    # Available models
+    # Available models - using full model names directly
     MODELS = {
-        "claude-4.5-haiku": "claude-4.5-haiku-20250514",
+        # Full model names (used directly)
+        "claude-3-5-haiku-20241022": "claude-3-5-haiku-20241022",
+        "claude-3-haiku-20240307": "claude-3-haiku-20240307",
+        "claude-3-5-sonnet-20241022": "claude-3-5-sonnet-20241022",
+        "claude-3-5-sonnet-20240620": "claude-3-5-sonnet-20240620",
+        "claude-3-opus-20240229": "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229": "claude-3-sonnet-20240229",
+        # Short name aliases for backward compatibility
         "claude-3.5-haiku": "claude-3-5-haiku-20241022",
-        "claude-4.5-sonnet": "claude-4.5-sonnet-20250514",
+        "claude-3-haiku": "claude-3-haiku-20240307",
         "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-        "claude-opus-4": "claude-opus-4-20250514"
+        "claude-3-opus": "claude-3-opus-20240229",
+        "claude-3-sonnet": "claude-3-sonnet-20240229"
     }
     
     def __init__(
         self,
         api_key: Optional[str] = None,
-        default_model: str = "claude-4.5-haiku",
+        default_model: str = "claude-3-5-haiku-20241022",  # Use full model name
         max_retries: int = 3,
         timeout: int = 60
     ):
@@ -147,12 +168,13 @@ class ClaudeService:
         
         Args:
             api_key: Anthropic API key (defaults to settings)
-            default_model: Default model to use
+            default_model: Default model to use (short name like 'claude-3.5-haiku')
             max_retries: Maximum retry attempts
             timeout: Request timeout in seconds
         """
         self.api_key = api_key or settings.claude_api_key
-        self.default_model = self.MODELS.get(default_model, self.MODELS["claude-4.5-haiku"])
+        # Store default model, fallback to fastest model if invalid
+        self.default_model = default_model if default_model in self.MODELS else "claude-3-5-haiku-20241022"
         self.max_retries = max_retries
         self.timeout = timeout
         
@@ -164,7 +186,8 @@ class ClaudeService:
                 api_key=self.api_key,
                 timeout=timeout
             )
-            logger.info(f"ClaudeService initialized with model: {self.default_model}")
+            # Log with resolved full model name
+            logger.info(f"ClaudeService initialized with model: {self.MODELS[self.default_model]}")
         
         # Usage tracking
         self.usage_stats = ClaudeUsageStats()
@@ -203,7 +226,11 @@ class ClaudeService:
             logger.error("Claude service not available")
             return None, None
         
-        model_name = self.MODELS.get(model, self.default_model)
+        # Resolve model name: if model is provided, look it up; otherwise use default
+        # First get the short model name (what user passes)
+        model_key = model or self.default_model
+        # Then resolve to full API model name
+        model_name = self.MODELS.get(model_key, self.MODELS[self.default_model])
         
         async with self.semaphore:  # Rate limiting
             for attempt in range(self.max_retries):
@@ -308,55 +335,58 @@ class ClaudeService:
         logger.info("Claude usage statistics reset")
     
     @staticmethod
-    def list_models() -> Dict[str, Dict[str, Any]]:
+    def list_models() -> List[Dict[str, Any]]:
         """
         Get list of available models with metadata.
         
         Returns:
-            Dictionary of model info
+            List of model info dictionaries
         """
-        return {
-            "claude-4.5-haiku": {
-                "name": "Claude 4.5 Haiku",
-                "version": "claude-4.5-haiku-20250514",
-                "description": "Fastest and most cost-effective (Recommended)",
+        # Return models in the same format as old implementation
+        return [
+            {
+                "id": "claude-3-5-haiku-20241022",
+                "name": "Claude 3.5 Haiku (Fastest)",
+                "description": "Fastest and most cost-effective",
                 "speed": "fastest",
-                "cost": "lowest",
-                "quality": "good"
+                "cost": "lowest"
             },
-            "claude-3.5-haiku": {
-                "name": "Claude 3.5 Haiku",
-                "version": "claude-3-5-haiku-20241022",
-                "description": "Previous generation fast model",
+            {
+                "id": "claude-3-haiku-20240307",
+                "name": "Claude 3 Haiku",
+                "description": "Fast and affordable",
                 "speed": "fastest",
-                "cost": "lowest",
-                "quality": "good"
+                "cost": "lowest"
             },
-            "claude-4.5-sonnet": {
-                "name": "Claude 4.5 Sonnet",
-                "version": "claude-4.5-sonnet-20250514",
+            {
+                "id": "claude-3-5-sonnet-20241022",
+                "name": "Claude 3.5 Sonnet (Latest)",
+                "description": "Latest balanced model",
+                "speed": "medium",
+                "cost": "medium"
+            },
+            {
+                "id": "claude-3-5-sonnet-20240620",
+                "name": "Claude 3.5 Sonnet",
                 "description": "Balanced quality and speed",
                 "speed": "medium",
-                "cost": "medium",
-                "quality": "excellent"
+                "cost": "medium"
             },
-            "claude-3.5-sonnet": {
-                "name": "Claude 3.5 Sonnet",
-                "version": "claude-3-5-sonnet-20241022",
-                "description": "Previous generation balanced model",
-                "speed": "medium",
-                "cost": "medium",
-                "quality": "excellent"
-            },
-            "claude-opus-4": {
-                "name": "Claude Opus 4",
-                "version": "claude-opus-4-20250514",
+            {
+                "id": "claude-3-opus-20240229",
+                "name": "Claude 3 Opus (Best Quality)",
                 "description": "Highest quality, most expensive",
                 "speed": "slower",
-                "cost": "highest",
-                "quality": "best"
+                "cost": "highest"
+            },
+            {
+                "id": "claude-3-sonnet-20240229",
+                "name": "Claude 3 Sonnet",
+                "description": "Balanced model",
+                "speed": "medium",
+                "cost": "medium"
             }
-        }
+        ]
 
 
 # Global instance

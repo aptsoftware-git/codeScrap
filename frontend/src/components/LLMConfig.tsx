@@ -59,13 +59,17 @@ const LLMConfigPanel: React.FC = () => {
         console.error('Failed to parse saved LLM config:', e);
       }
     }
-    return { provider: 'claude', model: 'claude-4.5-haiku' };
+    return { provider: 'claude', model: 'claude-3-5-haiku-20241022' };
   });
 
   const [expanded, setExpanded] = useState(false);
   const [models, setModels] = useState<{ ollama: LLMModel[]; claude: LLMModel[] }>({
     ollama: [],
     claude: [],
+  });
+  const [defaultModels, setDefaultModels] = useState<{ ollama: string; claude: string }>({
+    ollama: 'qwen2.5:3b',
+    claude: 'claude-3-5-haiku-20241022',
   });
   const [usage, setUsage] = useState<LLMUsage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,9 +83,38 @@ const LLMConfigPanel: React.FC = () => {
       const data = await response.json();
 
       if (data.models) {
+        // Handle the response structure correctly
+        const ollamaModels = Array.isArray(data.models.ollama?.models) 
+          ? data.models.ollama.models 
+          : (data.models.ollama?.default ? [{ id: data.models.ollama.default, name: data.models.ollama.default }] : []);
+        
+        const claudeModels = Array.isArray(data.models.claude?.models)
+          ? data.models.claude.models
+          : [];
+
         setModels({
-          ollama: data.models.ollama?.models || [],
-          claude: data.models.claude?.models || [],
+          ollama: ollamaModels,
+          claude: claudeModels,
+        });
+
+        // Store defaults from backend
+        const defaults = {
+          ollama: data.models.ollama?.default || 'qwen2.5:3b',
+          claude: data.models.claude?.default || 'claude-3.5-haiku',
+        };
+        setDefaultModels(defaults);
+
+        // Initialize config with backend default if current model doesn't exist
+        setConfig(prev => {
+          const currentModels = prev.provider === 'claude' ? claudeModels : ollamaModels;
+          const modelExists = currentModels.some((m: LLMModel) => m.id === prev.model);
+          if (!modelExists) {
+            return {
+              ...prev,
+              model: defaults[prev.provider],
+            };
+          }
+          return prev;
         });
       }
     } catch (err) {
@@ -138,9 +171,9 @@ const LLMConfigPanel: React.FC = () => {
 
   const handleProviderChange = (event: SelectChangeEvent<'ollama' | 'claude'>) => {
     const newProvider = event.target.value as 'ollama' | 'claude';
-    setConfig((prev) => ({
+    setConfig(() => ({
       provider: newProvider,
-      model: newProvider === 'claude' ? 'claude-4.5-haiku' : models.ollama[0]?.id || '',
+      model: defaultModels[newProvider],
     }));
   };
 
@@ -210,16 +243,41 @@ const LLMConfigPanel: React.FC = () => {
                 onChange={handleModelChange}
               >
                 {config.provider === 'claude'
-                  ? models.claude.map((model) => (
-                      <MenuItem key={model.id} value={model.id}>
-                        {model.name}
-                      </MenuItem>
-                    ))
-                  : models.ollama.map((model) => (
-                      <MenuItem key={model.id} value={model.id}>
-                        {model.name}
-                      </MenuItem>
-                    ))}
+                  ? (models.claude.length > 0 
+                      ? models.claude.map((model) => (
+                          <MenuItem key={model.id} value={model.id}>
+                            {model.name}
+                          </MenuItem>
+                        ))
+                      : [
+                          <MenuItem key="claude-3-5-haiku-20241022" value="claude-3-5-haiku-20241022">
+                            Claude 3.5 Haiku (Fastest)
+                          </MenuItem>,
+                          <MenuItem key="claude-3-haiku-20240307" value="claude-3-haiku-20240307">
+                            Claude 3 Haiku
+                          </MenuItem>,
+                          <MenuItem key="claude-3-5-sonnet-20241022" value="claude-3-5-sonnet-20241022">
+                            Claude 3.5 Sonnet (Latest)
+                          </MenuItem>,
+                          <MenuItem key="claude-3-5-sonnet-20240620" value="claude-3-5-sonnet-20240620">
+                            Claude 3.5 Sonnet
+                          </MenuItem>,
+                          <MenuItem key="claude-3-opus-20240229" value="claude-3-opus-20240229">
+                            Claude 3 Opus (Best Quality)
+                          </MenuItem>,
+                          <MenuItem key="claude-3-sonnet-20240229" value="claude-3-sonnet-20240229">
+                            Claude 3 Sonnet
+                          </MenuItem>
+                        ]
+                    )
+                  : (models.ollama.length > 0
+                      ? models.ollama.map((model) => (
+                          <MenuItem key={model.id} value={model.id}>
+                            {model.name || model.id}
+                          </MenuItem>
+                        ))
+                      : <MenuItem value="qwen2.5:3b">Qwen 2.5 3B</MenuItem>
+                    )}
               </Select>
             </FormControl>
           </Box>
@@ -250,7 +308,7 @@ const LLMConfigPanel: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">
                       Requests
                     </Typography>
-                    <Typography variant="body2">{usage.total_requests}</Typography>
+                    <Typography variant="body2">{usage.total_requests || 0}</Typography>
                   </Box>
 
                   <Box>
@@ -258,7 +316,7 @@ const LLMConfigPanel: React.FC = () => {
                       Total Cost
                     </Typography>
                     <Typography variant="body2" fontWeight="medium" color="primary">
-                      ${usage.total_cost.toFixed(4)}
+                      ${(usage.total_cost || 0).toFixed(4)}
                     </Typography>
                   </Box>
 
@@ -267,7 +325,7 @@ const LLMConfigPanel: React.FC = () => {
                       Input Tokens
                     </Typography>
                     <Typography variant="body2">
-                      {usage.total_input_tokens.toLocaleString()}
+                      {(usage.total_input_tokens || 0).toLocaleString()}
                     </Typography>
                   </Box>
 
@@ -276,7 +334,7 @@ const LLMConfigPanel: React.FC = () => {
                       Output Tokens
                     </Typography>
                     <Typography variant="body2">
-                      {usage.total_output_tokens.toLocaleString()}
+                      {(usage.total_output_tokens || 0).toLocaleString()}
                     </Typography>
                   </Box>
 
@@ -285,7 +343,7 @@ const LLMConfigPanel: React.FC = () => {
                       Cached Tokens
                     </Typography>
                     <Typography variant="body2" color="success.main">
-                      {usage.total_cached_tokens.toLocaleString()}
+                      {(usage.total_cached_tokens || 0).toLocaleString()}
                     </Typography>
                   </Box>
 
@@ -294,7 +352,7 @@ const LLMConfigPanel: React.FC = () => {
                       Cache Savings
                     </Typography>
                     <Typography variant="body2" color="success.main">
-                      ${usage.cache_savings.toFixed(4)}
+                      ${(usage.cache_savings || 0).toFixed(4)}
                     </Typography>
                   </Box>
                 </Box>
@@ -317,7 +375,7 @@ export const getLLMConfig = (): LLMConfig => {
       console.error('Failed to parse saved LLM config:', e);
     }
   }
-  return { provider: 'claude', model: 'claude-4.5-haiku' };
+  return { provider: 'claude', model: 'claude-3-5-haiku-20241022' };
 };
 
 export default LLMConfigPanel;
