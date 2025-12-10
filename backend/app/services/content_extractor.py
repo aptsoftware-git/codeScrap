@@ -54,8 +54,38 @@ class ContentExtractor:
                             break
                     
                     if elements:
-                        # Join text from all matching elements
-                        text = ' '.join(el.get_text(strip=True) for el in elements)
+                        # For content field, preserve paragraph structure
+                        if field == 'content':
+                            text_parts = []
+                            seen_texts = set()  # Track seen text to avoid duplicates
+                            
+                            for el in elements:
+                                # Get all paragraphs within this element
+                                paragraphs = el.find_all(['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+                                if paragraphs:
+                                    for p in paragraphs:
+                                        para_text = p.get_text(separator=' ', strip=True)
+                                        # Only add if not empty and not seen before (deduplication)
+                                        if para_text and len(para_text) > 20:  # Skip very short texts
+                                            # Create a normalized version for comparison
+                                            normalized = ' '.join(para_text.split())
+                                            if normalized not in seen_texts:
+                                                seen_texts.add(normalized)
+                                                text_parts.append(para_text)
+                                else:
+                                    # If no paragraphs, get direct text
+                                    direct_text = el.get_text(separator=' ', strip=True)
+                                    if direct_text and len(direct_text) > 20:
+                                        normalized = ' '.join(direct_text.split())
+                                        if normalized not in seen_texts:
+                                            seen_texts.add(normalized)
+                                            text_parts.append(direct_text)
+                            
+                            text = '\n\n'.join(text_parts) if text_parts else None
+                        else:
+                            # For other fields (title, date, author), join with space
+                            text = ' '.join(el.get_text(strip=True) for el in elements)
+                        
                         extracted[field] = text if text else None
                         logger.debug(f"  {field}: Found {len(elements)} elements with '{matched_selector}', extracted {len(text) if text else 0} chars")
                     else:

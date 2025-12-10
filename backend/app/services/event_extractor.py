@@ -115,9 +115,18 @@ CRITICAL RULES - READ CAREFULLY:
 8. Location should be where THIS event takes place
 9. Date should be when THIS event happened (not the article date)
 10. If event doesn't clearly fit a category, use "other"
+11. Individuals: List ONLY actual person names (e.g., "Narendra Modi", "Vladimir Putin") - exclude place names, abbreviations, or non-person entities
 
 PERPETRATOR TYPES (ONLY if this is a violent attack with identified perpetrator):
 - terrorist_group, state_actor, criminal_organization, individual, multiple_parties, unknown, not_applicable
+
+INDIVIDUALS FIELD INSTRUCTIONS:
+- Include ONLY actual human names (first name + last name or full names)
+- EXCLUDE: Place names (Tamil Nadu, Tai Po), abbreviations (RADS, DMU), organization names, medical terms
+- EXCLUDE: Single-word names without context (Kurnool, Vishnu without surname could be a place)
+- Include: Political leaders, officials, victims with full names, witnesses with full names
+- Examples of VALID individuals: "Narendra Modi", "Revanth Reddy", "Vladimir Putin", "M Lakshmaiah"
+- Examples of INVALID (do not include): "Tamil Nadu", "RADS", "Kurnool", "Tai Po", "DMU"
 
 EXAMPLE - Meeting/Summit Article:
 {
@@ -472,8 +481,17 @@ Return ONLY valid JSON matching the schema provided."""
             else:
                 country_str = country_value
             
+            # Handle city - convert list to string if needed (for multi-city events)
+            city_value = location_data.get("city")
+            if isinstance(city_value, list):
+                # Join multiple cities with "/" for multi-city events
+                city_str = "/".join(city_value) if city_value else None
+                logger.debug(f"Converted city list to string: {city_value} -> {city_str}")
+            else:
+                city_str = city_value
+            
             location = Location(
-                city=location_data.get("city"),
+                city=city_str,
                 region=location_data.get("region") or location_data.get("state"),
                 country=country_str,
                 coordinates=None
